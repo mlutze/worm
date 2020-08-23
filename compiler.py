@@ -30,7 +30,7 @@ class Visitor(ast.NodeVisitor):
     
     def add_arg(self):
         self.arg_count += 1
-        arg_name = f"arg{self.arg_count}"
+        arg_name = f"arg-{self.arg_count}"
         self.registers.add(arg_name)
         return arg_name
 
@@ -38,7 +38,7 @@ class Visitor(ast.NodeVisitor):
         self.arg_count -= 1
 
     def add_label(self):
-        label_name = "location-" + chr(len(self.labels) + ord('a'))
+        label_name = f"location-{len(self.labels)}"
         self.labels.append(label_name)
         self.registers.add(label_name)
         return label_name
@@ -128,6 +128,8 @@ class Visitor(ast.NodeVisitor):
             elif inner_func != "input":
                 panic("Int call not wrapping input.", node.lineno)
             self.read(RESULT)
+        else:
+            panic("Unsupported function call.", node.lineno)
     
     def visit_Name(self, node):
         if (node.id not in self.registers):
