@@ -111,6 +111,7 @@ def compile_slim(lines: List[Line]) -> List[Line]:
     for i, register in enumerate(registers):
         name_lookup[register] = i
 
+
     def resolve_arg(value):
         if isinstance(value, Name):
             return name_lookup[value.value] # TODO throw specific error
@@ -137,7 +138,6 @@ class SLIM:
         # TODO halt or something
 
     def exec_command(self, command: Command) -> None:
-        print(command)
         if command.cmd not in COMMANDS:
             raise Exception
 
@@ -220,11 +220,13 @@ class SLIM:
 
 
     def j(self, addr):
-        self.pointer = addr
+        self.pointer = self.registers[addr]
 
     def jeqz(self, src, addr):
         if self.registers[src] == 0:
-            self.pointer = self.registers[addr] # TODO something's wrong here
+            self.pointer = self.registers[addr]
+        else:
+            self.next_line()
 
     def halt(self):
         pass
