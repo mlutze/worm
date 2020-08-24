@@ -53,6 +53,15 @@ print(product)
 """
         self.do_test_script(script, "10\n")
 
+    def test_until_stop(self):
+        script = """
+stop = 0
+while stop != 1:
+    print(5)
+    stop = int(input())
+"""
+        self.do_test_script(script, "0\n0\n0\n1")
+
 
 if __name__ == "__main__":
     unittest.main()
