@@ -62,6 +62,15 @@ while stop != 1:
 """
         self.do_test_script(script, "0\n0\n0\n1")
 
+    def test_count_augassign(self):
+        script = """
+i = 0
+while i < 10:
+    print(i)
+    i += 1
+"""
+        self.do_test_script(script, "")
+
 
 if __name__ == "__main__":
     unittest.main()

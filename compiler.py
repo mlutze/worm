@@ -51,6 +51,22 @@ class Visitor(ast.NodeVisitor):
         self.registers.add(target)
         self.cp(target, RESULT)
 
+    def visit_AugAssign(self, node):
+        self.visit(node.value)
+        target = node.target
+        if isinstance(node.op, ast.Add):
+            self.add(target, target, RESULT)
+        elif isinstance(node.op, ast.Sub):
+            self.sub(target, target, RESULT)
+        elif isinstance(node.op, ast.Mult):
+            self.mul(target, target, RESULT)
+        elif isinstance(node.op, ast.FloorDiv):
+            self.div(target, target, RESULT)
+        elif isinstance(node.op, ast.Mod):
+            self.rem(target, target, RESULT)
+        else:
+            panic("Unsupported binary operator.", node.lineno)
+
     def visit_BinOp(self, node):
         self.visit(node.left)
         arg = self.add_arg()
@@ -129,6 +145,13 @@ class Visitor(ast.NodeVisitor):
                 panic("Int call not wrapping input.", node.lineno)
             self.read(RESULT)
         else:
+            # push args, locals onto stack
+            # move stack pointer
+            # set return label
+            # jump to function
+            # label for return
+
+            # question: should pop off need to happen before or after jump?
             panic("Unsupported function call.", node.lineno)
     
     def visit_Name(self, node):
@@ -166,6 +189,20 @@ class Visitor(ast.NodeVisitor):
                 self.visit(subnode)
         self.j(start_label)
         self.label(end_label)
+
+    def visit_FunctionDef(self, node):
+        # compile time stuff:
+        # map arg names to registers
+        
+        # run time stuff:
+        # pop each arg off stack into registers, in order
+        # execute each non-return node
+
+        # for return line:
+        # execute body, put result in result reg, jump back to return pointer, reset stack pointer
+        
+        panic("Unsupported definition.", node.lineno)
+        
 
     def add(self, dest, src1, src2):
         self.do("add", dest, src1, src2)
