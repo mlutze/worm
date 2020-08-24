@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
-from typing import List, Union, NamedTuple
+from typing import Dict, List, Union, NamedTuple
 import re
 import sys
 
@@ -84,7 +84,7 @@ def parse_slim(lines: List[str]) -> List[Line]:
 # what happens if we put a label ahead of nothing -- ignored
 # what happens if we allocate the same register twice? "Register name 'b' already in use on line 1."; does this for each error
 def compile_slim(lines: List[Line]) -> List[Line]:
-    registers = []
+    registers: List[str] = []
     for line in lines:
         if isinstance(line, Alloc):
             for name in line.names:
@@ -127,7 +127,7 @@ def compile_slim(lines: List[Line]) -> List[Line]:
 
 class SLIM:
     def __init__(self, commands: List[Command]):
-        self.mem = {}
+        self.mem: Dict[int, int] = {}
         self.registers = [0 for _ in range(32)]
         self.commands = commands
         self.pointer = 0
