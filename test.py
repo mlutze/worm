@@ -67,6 +67,10 @@ print(int(b))
         script = "print(int(12 + 34 - 56 * 78 // 90))"
         self.do_test_script(script, "")
 
+    def test_bool(self):
+        script = "print(int(True))"
+        self.do_test_script(script, "")
+
     def test_if(self):
         script = """
 if 1 == 2:
@@ -94,6 +98,7 @@ print(int(f(3)))
 """
         self.do_test_script(script, "")
 
+    @unittest.skip
     def test_recursion(self):
         script = """
 def fact(x):

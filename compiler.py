@@ -60,7 +60,6 @@ class Visitor(ast.NodeVisitor):
         self.label_count = 0
         self.local_count = 0
         self.lines = []
-        self.li(ZERO, 0)
     
     def add_arg(self):
         arg_name = f"arg-{self.arg_count}"
@@ -179,7 +178,7 @@ class Visitor(ast.NodeVisitor):
     def visit_Constant(self, node):
         if not(isinstance(node.value, int)):
             panic("Non-integer literal.", node.lineno)
-        self.li(RESULT, node.value) 
+        self.li(RESULT, int(node.value)) 
 
     def visit_Call(self, node): # will need to handle non-name functions
         func = node.func.id
@@ -418,6 +417,7 @@ def main():
     visitor = Visitor()
     code = read_input()
     tree = ast.parse(code)
+    print(ast.dump(tree))
     visitor.visit(tree)
     output = visitor.get_code()
     for line in output:
