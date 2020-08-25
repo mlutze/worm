@@ -10,7 +10,7 @@ JUMP_LABEL = "jump-label"
 ZERO = "zero"
 ONE = "one"
 STACK_POINTER = "stack-pointer" # always points at next empty slot in stack
-MAIN_SCOPE = "main"
+MAIN_SCOPE = ""
 
 # TODO: update to distinguish input files
 def read_input():
@@ -24,9 +24,36 @@ def panic(message, line):
     error(message)
     exit(1)
 
+class Namespace:
+    def __init__(self, visitor):
+        self.visitor = visitor
+        self.names = {}
+        self.local_count = 0
+
+    def get_or_create_name(self, name):
+        if name in self.names:
+            id = self.names[name]
+        else:
+            id = self.add_local()
+            self.names[name] = id
+        return id
+
+    def add_local(self):
+        local_name = f"local-{self.local_count}"
+        self.local_count += 1
+        self.visitor.registers.add(local_name)
+        return local_name 
+
+    def __contains__(self, item):
+        return item in self.names
+
+    def __getitem__(self, item):
+        return self.names[item]
+
+
 class Visitor(ast.NodeVisitor):
     def __init__(self):
-        self.namespaces = {MAIN_SCOPE: {}}
+        self.namespaces = {MAIN_SCOPE: Namespace(self)}
         self.scope = MAIN_SCOPE
         self.registers = set([RESULT, ZERO, ONE, JUMP_LABEL, STACK_POINTER])
         self.arg_count = 0
@@ -47,13 +74,7 @@ class Visitor(ast.NodeVisitor):
         return label_name
 
     def get_func_label(self, name):
-        return f"label-{self.scope}-{name}"
-
-    def add_local(self):
-        local_name = f"local-{self.local_count}"
-        self.local_count += 1
-        self.registers.add(local_name)
-        return local_name 
+        return f"label-{name}"
 
     def rem_arg(self):
         self.arg_count -= 1
@@ -62,22 +83,21 @@ class Visitor(ast.NodeVisitor):
         self.local_count -= 1
 
     def get_local_namespace(self):
-        return self.namespaces.get(self.scope, {})
+        if self.scope in self.namespaces:
+            return self.namespaces[self.scope]
+        else:
+            self.namespaces[self.scope] = Namespace(self)
+            return self.namespaces[self.scope]
 
     def get_or_create_name(self, name):
         namespace = self.get_local_namespace()
-        if name in namespace:
-            id = namespace[name]
-        else:
-            id = self.add_local()
-            namespace[name] = id
-        return id
+        return namespace.get_or_create_name(name)
 
     def enter_scope(self, name):
-        self.scope += f"-{name}"
-    
+        self.scope = name
+
     def exit_scope(self):
-        self.scope, _ = self.scope.rsplit("-", 1)
+        self.scope = MAIN_SCOPE
 
     def visit_Assign(self, node):
         if (len(node.targets) > 1):
@@ -129,7 +149,7 @@ class Visitor(ast.NodeVisitor):
         arg = self.add_arg()
         self.cp(arg, RESULT)
         self.visit(node.right)
-        if isinstance(node.op, ast.And):
+        if isinstance(node.op, ast.And): # TODO
             pass
 
     def visit_Compare(self, node):
@@ -163,12 +183,12 @@ class Visitor(ast.NodeVisitor):
 
     def visit_Call(self, node): # will need to handle non-name functions
         func = node.func.id
-        if len(node.args) != 1:
-            panic("Non-single print arguments.", node.lineno)
-        elif node.keywords != []:
-            panic("Print keyword argument.", node.lineno)
-        arg = node.args[0]
         if func == "print": 
+            if len(node.args) != 1:
+                panic("Non-single print arguments.", node.lineno)
+            elif node.keywords != []:
+                panic("Print keyword argument.", node.lineno)
+            arg = node.args[0]
             if not(isinstance(arg, ast.Call)):
                 panic("Print call not wrapping int.", node.lineno)
             inner_func = arg.func.id
@@ -181,6 +201,11 @@ class Visitor(ast.NodeVisitor):
             self.visit(arg.args[0])
             self.write(RESULT)
         elif func == "int":
+            if len(node.args) != 1:
+                panic("Non-single int arguments.", node.lineno)
+            elif node.keywords != []:
+                panic("Int keyword argument.", node.lineno)
+            arg = node.args[0]
             if not(isinstance(arg, ast.Call)):
                 panic("Int call not wrapping input.", node.lineno)
             inner_func = arg.func.id
@@ -213,7 +238,7 @@ class Visitor(ast.NodeVisitor):
     def visit_Name(self, node):
         namespace = self.get_local_namespace()
         if (node.id not in namespace):
-            panic("Unknown name.", node.lineno)
+            panic(f"Unknown name: {node.id}", node.lineno)
 
         reg = namespace[node.id]
         self.cp(RESULT, reg)
@@ -253,7 +278,7 @@ class Visitor(ast.NodeVisitor):
         self.visit(node.test)
         self.jeqz_to(RESULT, end_label)
         for subnode in node.body:
-            if isinstance(subnode, ast.Break):
+            if isinstance(subnode, ast.Break): # TODO need to handle break and continue in nested exprs
                 self.j_to(end_label)
             elif isinstance(subnode, ast.Continue):
                 self.j_to(start_label)
@@ -273,7 +298,7 @@ class Visitor(ast.NodeVisitor):
             reg = self.get_or_create_name(arg.arg)
             self.pop(reg)
         for subnode in node.body:
-            if isinstance(subnode, ast.Return):
+            if isinstance(subnode, ast.Return): # TODO need to handle return in nested exprs
                 self.visit(subnode.value)
                 self.pop(JUMP_LABEL)
                 self.j(JUMP_LABEL)
@@ -377,6 +402,9 @@ class Visitor(ast.NodeVisitor):
 
     def label(self, name):
         self.lines.append(f"{name}:")
+    
+    def comment(self, text):
+        self.lines.append(f";; {text}")
     
     def get_code(self):
         if len(self.registers) > 32:

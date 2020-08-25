@@ -97,10 +97,28 @@ print(int(f(3)))
     def test_recursion(self):
         script = """
 def fact(x):
-    return x * fact(x - 1)
+    if x == 1:
+        return 1
+    else:
+        return x * fact(x - 1)
 
 print(int(fact(10)))
 """
         self.do_test_script(script, "")
+
+    @unittest.skip
+    def test_multiple_recursion(self):
+        script = """
+def choose(n, k):
+    if (k == 0):
+        return 1
+    elif (k == n):
+        return 1
+    else:
+        return choose(n - 1, k - 1) + choose(n - 1, k)
+print(int(choose(10, 4)))
+"""
+        self.do_test_script(script, "")
+
 if __name__ == "__main__":
     unittest.main()
