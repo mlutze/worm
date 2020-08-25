@@ -51,6 +51,14 @@ print(int(a))
 """
         self.do_test_script(script, "")
 
+    def test_unaryop(self):
+        script = """
+a = 99
+b = -a
+print(int(b))
+"""
+        self.do_test_script(script, "")
+
     def test_binop(self):
         script = "print(int(1 + 2))"
         self.do_test_script(script, "")

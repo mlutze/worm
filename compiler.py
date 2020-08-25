@@ -182,17 +182,17 @@ class Visitor(ast.NodeVisitor):
             self.visit(subnode)
         self.label(end_label)
 
-#    def visit_UnaryOp(self, node): # TODO unignore
-#        if isinstance(node.op, ast.UAdd):
-#            self.visit(node.operand)
-#        elif isinstance(node.op, ast.USub):
-#            self.visit(node.operand)
-#            self.sub(RESULT, ZERO, RESULT)
-#        elif isinstance(node.op, ast.Not):
-#            self.visit(node.operand)
-#            self.seq(RESULT, ZERO, RESULT)
-#        else:
-#            panic("Unsupported unary operator.", node.lineno)
+    def visit_UnaryOp(self, node):
+        if isinstance(node.op, ast.UAdd):
+            self.visit(node.operand)
+        elif isinstance(node.op, ast.USub):
+            self.visit(node.operand)
+            self.sub(RESULT, ZERO, RESULT)
+        elif isinstance(node.op, ast.Not):
+            self.visit(node.operand)
+            self.seq(RESULT, ZERO, RESULT)
+        else:
+            panic("Unsupported unary operator.", node.lineno)
 
 
     def visit_While(self, node):
