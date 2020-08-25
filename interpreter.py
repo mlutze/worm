@@ -201,11 +201,11 @@ class SLIM:
 
 
     def ld(self, dest, addr):
-        self.registers[dest] = self.memory[addr]
+        self.registers[dest] = self.mem[self.registers[addr]]
         self.next_line()
 
     def st(self, src, addr):
-        self.memory[addr] = self.registers[src]
+        self.mem[self.registers[addr]] = self.registers[src]
         self.next_line()
 
     

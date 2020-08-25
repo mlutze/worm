@@ -8,6 +8,8 @@ import fileinput
 RESULT = "result"
 JUMP_LABEL = "jump-label"
 ZERO = "zero"
+ONE = "one"
+STACK_POINTER = "stack-pointer" # always points at next empty slot in stack
 MAIN_SCOPE = "main"
 
 # TODO: update to distinguish input files
@@ -26,7 +28,7 @@ class Visitor(ast.NodeVisitor):
     def __init__(self):
         self.namespaces = {MAIN_SCOPE: {}}
         self.scope = MAIN_SCOPE
-        self.registers = set([RESULT, ZERO, JUMP_LABEL])
+        self.registers = set([RESULT, ZERO, ONE, JUMP_LABEL, STACK_POINTER])
         self.arg_count = 0
         self.label_count = 0
         self.local_count = 0
@@ -34,19 +36,22 @@ class Visitor(ast.NodeVisitor):
         self.li(ZERO, 0)
     
     def add_arg(self):
-        self.arg_count += 1
         arg_name = f"arg-{self.arg_count}"
+        self.arg_count += 1
         self.registers.add(arg_name)
         return arg_name
 
     def add_label(self):
-        self.label_count += 1
         label_name = f"label-{self.label_count}"
+        self.label_count += 1
         return label_name
 
+    def get_func_label(self, name):
+        return f"label-{self.scope}-{name}"
+
     def add_local(self):
+        local_name = f"local-{self.local_count}"
         self.local_count += 1
-        local_name = f"arg-{self.local_count}"
         self.registers.add(local_name)
         return local_name 
 
@@ -57,7 +62,7 @@ class Visitor(ast.NodeVisitor):
         self.local_count -= 1
 
     def get_local_namespace(self):
-        return self.namespaces[self.scope]
+        return self.namespaces.get(self.scope, {})
 
     def get_or_create_name(self, name):
         namespace = self.get_local_namespace()
@@ -67,6 +72,12 @@ class Visitor(ast.NodeVisitor):
             id = self.add_local()
             namespace[name] = id
         return id
+
+    def enter_scope(self, name):
+        self.scope += f"-{name}"
+    
+    def exit_scope(self):
+        self.scope, _ = self.scope.rsplit("-", 1)
 
     def visit_Assign(self, node):
         if (len(node.targets) > 1):
@@ -181,14 +192,23 @@ class Visitor(ast.NodeVisitor):
                 panic("Int call not wrapping input.", node.lineno)
             self.read(RESULT)
         else:
-            # push args, locals onto stack
-            # move stack pointer
-            # set return label
-            # jump to function
-            # label for return
-
-            # question: should pop off need to happen before or after jump?
-            panic("Unsupported function call.", node.lineno)
+            return_label = self.add_label()
+            func_label = self.get_func_label(func)
+            for i in range(self.arg_count):
+                self.push(f"arg-{i}")
+            for i in range(self.local_count):
+                self.push(f"local-{i}")
+            self.li(JUMP_LABEL, return_label)
+            self.push(JUMP_LABEL)
+            for arg in node.args:
+                self.visit(arg)
+                self.push(RESULT)
+            self.j_to(func_label)
+            self.label(return_label)
+            for i in reversed(range(self.local_count)):
+                self.pop(f"local-{i}")
+            for i in reversed(range(self.arg_count)):
+                self.pop(f"arg-{i}")
     
     def visit_Name(self, node):
         namespace = self.get_local_namespace()
@@ -243,18 +263,27 @@ class Visitor(ast.NodeVisitor):
         self.label(end_label)
 
     def visit_FunctionDef(self, node):
-        # compile time stuff:
-        # map arg names to registers
+        func_label = self.get_func_label(node.name)
+        end_label = self.add_label()
+        self.enter_scope(node.name)
         
-        # run time stuff:
-        # pop each arg off stack into registers, in order
-        # execute each non-return node
-
-        # for return line:
-        # execute body, put result in result reg, jump back to return pointer, reset stack pointer
+        self.j_to(end_label) # don't execute when defining function
+        self.label(func_label)
+        for arg in reversed(node.args.args): # TODO handle kwargs, defaults, etc.
+            reg = self.get_or_create_name(arg.arg)
+            self.pop(reg)
+        for subnode in node.body:
+            if isinstance(subnode, ast.Return):
+                self.visit(subnode.value)
+                self.pop(JUMP_LABEL)
+                self.j(JUMP_LABEL)
+            else:
+                self.visit(subnode)
+        self.pop(JUMP_LABEL)
+        self.j(JUMP_LABEL)
+        self.label(end_label)
         
-        panic("Unsupported definition.", node.lineno)
-        
+        self.exit_scope()
 
     def add(self, dest, src1, src2):
         self.do("add", dest, src1, src2)
@@ -320,20 +349,28 @@ class Visitor(ast.NodeVisitor):
     def j(self, addr):
         self.do("j", addr)
 
+    
+    # === Helper "Instructions" === #
 
-    # not a real instruction
     def jeqz_to(self, src, label):
         self.li(JUMP_LABEL, label)
         self.jeqz(src, JUMP_LABEL)
 
-    # not a real instruction
     def j_to(self, label):
         self.li(JUMP_LABEL, label)
         self.j(JUMP_LABEL)
 
-    # not a real instruction
     def cp(self, dest, src):
         self.add(dest, ZERO, src)
+
+    def push(self, src):
+        self.st(src, STACK_POINTER)
+        self.add(STACK_POINTER, STACK_POINTER, ONE)
+    
+    def pop(self, dest):
+        self.sub(STACK_POINTER, STACK_POINTER, ONE)
+        self.ld(dest, STACK_POINTER)
+
 
     def do(self, cmd, *args):
         self.lines.append(cmd + " " + ", ".join(str(arg) for arg in args))
@@ -345,8 +382,9 @@ class Visitor(ast.NodeVisitor):
         if len(self.registers) > 32:
             panic("Expression stack overflow.", -1)
         allo_regs = ["allocate-registers " + ", ".join(self.registers)]
+        loads = [f"li {ZERO}, 0", f"li {ONE}, 1", f"li {STACK_POINTER}, 0"]
         halt = ["halt"]
-        return allo_regs + self.lines + halt
+        return allo_regs + loads + self.lines + halt
 
 def main():
     visitor = Visitor()

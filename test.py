@@ -85,6 +85,22 @@ while i > 0:
 """
         self.do_test_script(script, "")
 
+    def test_func(self):
+        script = """
+def f(x):
+    return 5
 
+print(int(f(3)))
+"""
+        self.do_test_script(script, "")
+
+    def test_recursion(self):
+        script = """
+def fact(x):
+    return x * fact(x - 1)
+
+print(int(fact(10)))
+"""
+        self.do_test_script(script, "")
 if __name__ == "__main__":
     unittest.main()
