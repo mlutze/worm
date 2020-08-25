@@ -33,13 +33,13 @@ class CompilerTest(unittest.TestCase):
         self.assertEqual(python_result, worm_result)
 
     def test_print(self):
-        script = "print(123)"
+        script = "print(int(123))"
         self.do_test_script(script, "")
 
     def test_var(self):
         script = """
 a = 123
-print(a)
+print(int(a))
 """
         self.do_test_script(script, "")
 
@@ -47,24 +47,24 @@ print(a)
         script = """
 a = 10
 a += 5
-print(a)
+print(int(a))
 """
         self.do_test_script(script, "")
 
     def test_binop(self):
-        script = "print(1 + 2)"
+        script = "print(int(1 + 2))"
         self.do_test_script(script, "")
 
     def test_binop_complex(self):
-        script = "print(12 + 34 - 56 * 78 // 90)"
+        script = "print(int(12 + 34 - 56 * 78 // 90))"
         self.do_test_script(script, "")
 
     def test_if(self):
         script = """
 if 1 == 2:
-    print(3)
+    print(int(3))
 else:
-    print(4)
+    print(int(4))
 """
         self.do_test_script(script, "")
 
@@ -72,7 +72,7 @@ else:
         script = """
 i = 10
 while i > 0:
-    print(i)
+    print(int(i))
     i -= 1
 """
         self.do_test_script(script, "")

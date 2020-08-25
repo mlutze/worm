@@ -130,8 +130,17 @@ class Visitor(ast.NodeVisitor):
         elif node.keywords != []:
             panic("Print keyword argument.", node.lineno)
         arg = node.args[0]
-        if func == "print":
-            self.visit(arg)
+        if func == "print": 
+            if not(isinstance(arg, ast.Call)):
+                panic("Print call not wrapping int.", node.lineno)
+            inner_func = arg.func.id
+            if (len(arg.args) != 1):
+                panic("Multiple print call arguments.", node.lineno)
+            elif (arg.keywords != []):
+                panic("Print call keyword argument.", node.lineno)
+            elif inner_func != "int":
+                panic("Print call not wrapping int.", node.lineno)
+            self.visit(arg.args[0])
             self.write(RESULT)
         elif func == "int":
             if not(isinstance(arg, ast.Call)):
