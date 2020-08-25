@@ -71,6 +71,14 @@ print(int(b))
         script = "print(int(True))"
         self.do_test_script(script, "")
 
+    def test_boolop(self):
+        script = "print(int(False or True))"
+        self.do_test_script(script, "")
+
+    def test_boolop_complex(self):
+        script = "print(int(not(12 and 34 or False)))"
+        self.do_test_script(script, "")
+
     def test_if(self):
         script = """
 if 1 == 2:

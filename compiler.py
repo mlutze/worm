@@ -144,12 +144,23 @@ class Visitor(ast.NodeVisitor):
         self.rem_arg()
 
     def visit_BoolOp(self, node):
-        self.visit(node.left)
-        arg = self.add_arg()
-        self.cp(arg, RESULT)
-        self.visit(node.right)
-        if isinstance(node.op, ast.And): # TODO
-            pass
+        if (len(node.values) != 2):
+            panic("Non-binary boolean operator.", node.lineno) # TODO handle chains
+        left, right = node.values
+        self.visit(left)
+        end_label = self.add_label()
+        next_label = self.add_label()
+        if isinstance(node.op, ast.And):
+            self.jeqz_to(RESULT, end_label)
+            self.visit(right)
+        elif isinstance(node.op, ast.Or):
+            self.jeqz_to(RESULT, next_label)
+            self.j_to(end_label)
+            self.label(next_label)
+            self.visit(right)
+        else:
+            panic("Unsupported boolean operator.", node.lineno)
+        self.label(end_label)
 
     def visit_Compare(self, node):
         if len(node.ops) != 1:
@@ -417,7 +428,6 @@ def main():
     visitor = Visitor()
     code = read_input()
     tree = ast.parse(code)
-    print(ast.dump(tree))
     visitor.visit(tree)
     output = visitor.get_code()
     for line in output:
