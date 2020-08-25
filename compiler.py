@@ -6,6 +6,7 @@ import fileinput
 
 # constants
 RESULT = "result"
+JUMP_LABEL = "jump-label"
 ZERO = "zero"
 
 # TODO: update to distinguish input files
@@ -22,10 +23,10 @@ def panic(message, line):
 
 class Visitor(ast.NodeVisitor):
     def __init__(self):
-        self.registers = set([RESULT, ZERO])
+        self.registers = set([RESULT, ZERO, JUMP_LABEL])
         self.arg_count = 0
+        self.label_count = 0
         self.lines = []
-        self.labels = [] 
         self.li(ZERO, 0)
     
     def add_arg(self):
@@ -34,14 +35,13 @@ class Visitor(ast.NodeVisitor):
         self.registers.add(arg_name)
         return arg_name
 
+    def add_label(self):
+        self.label_count += 1
+        label_name = f"label-{self.label_count}"
+        return label_name
+
     def rem_arg(self):
         self.arg_count -= 1
-
-    def add_label(self):
-        label_name = f"location-{len(self.labels)}"
-        self.labels.append(label_name)
-        self.registers.add(label_name)
-        return label_name
 
     def visit_Assign(self, node):
         if (len(node.targets) > 1):
@@ -164,14 +164,27 @@ class Visitor(ast.NodeVisitor):
         false_label = self.add_label()
         end_label = self.add_label()
         
-        self.jeqz(RESULT, false_label)
+        self.jeqz_to(RESULT, false_label)
         for subnode in node.body:
             self.visit(subnode)
-        self.j(end_label)
+        self.j_to(end_label)
         self.label(false_label)
         for subnode in node.orelse:
             self.visit(subnode)
         self.label(end_label)
+
+#    def visit_UnaryOp(self, node): # TODO unignore
+#        if isinstance(node.op, ast.UAdd):
+#            self.visit(node.operand)
+#        elif isinstance(node.op, ast.USub):
+#            self.visit(node.operand)
+#            self.sub(RESULT, ZERO, RESULT)
+#        elif isinstance(node.op, ast.Not):
+#            self.visit(node.operand)
+#            self.seq(RESULT, ZERO, RESULT)
+#        else:
+#            panic("Unsupported unary operator.", node.lineno)
+
 
     def visit_While(self, node):
         start_label = self.add_label()
@@ -268,6 +281,17 @@ class Visitor(ast.NodeVisitor):
     def j(self, addr):
         self.do("j", addr)
 
+
+    # not a real instruction
+    def jeqz_to(self, src, label):
+        self.li(JUMP_LABEL, label)
+        self.jeqz(src, JUMP_LABEL)
+
+    # not a real instruction
+    def j_to(self, label):
+        self.li(JUMP_LABEL, label)
+        self.j(JUMP_LABEL)
+
     # not a real instruction
     def cp(self, dest, src):
         self.add(dest, ZERO, src)
@@ -276,15 +300,14 @@ class Visitor(ast.NodeVisitor):
         self.lines.append(cmd + " " + ", ".join(str(arg) for arg in args))
 
     def label(self, name):
-        self.lines.append(f"{name}-label:")
+        self.lines.append(f"{name}:")
     
     def get_code(self):
         if len(self.registers) > 32:
             panic("Expression stack overflow.", -1)
         allo_regs = ["allocate-registers " + ", ".join(self.registers)]
-        load_labels = [f"li {name}, {name}-label" for name in self.labels]
         halt = ["halt"]
-        return allo_regs + load_labels + self.lines + halt
+        return allo_regs + self.lines + halt
 
 def main():
     visitor = Visitor()

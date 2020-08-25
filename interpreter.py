@@ -66,9 +66,13 @@ def parse_slim(lines: List[str]) -> List[Line]:
         elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
             names = [name.strip() for name in match[1].split(",")]
             return Alloc(names)
-        elif match := re.fullmatch(r"([a-z]+)\s+((?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" + NAME_REGEX + r"|\d+))*)", line):
+        elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" + NAME_REGEX + r"|\d+))*)?", line):
             cmd = match[1]
-            args = [parse_value(value.strip()) for value in match[2].split(",")]
+            arg_string = match[2]
+            if arg_string is None:
+                args = []
+            else:
+                args = [parse_value(value.strip()) for value in arg_string.split(",")]
             return Command(cmd, args)
         else:
             pass # TODO throw error
@@ -229,7 +233,7 @@ class SLIM:
             self.next_line()
 
     def halt(self):
-        pass
+        exit(0)
 
 def main():
     with open(sys.argv[1]) as input_file:
