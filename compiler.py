@@ -8,6 +8,7 @@ import fileinput
 RESULT = "result"
 JUMP_LABEL = "jump-label"
 ZERO = "zero"
+MAIN_SCOPE = "main"
 
 # TODO: update to distinguish input files
 def read_input():
@@ -23,9 +24,12 @@ def panic(message, line):
 
 class Visitor(ast.NodeVisitor):
     def __init__(self):
+        self.namespaces = {MAIN_SCOPE: {}}
+        self.scope = MAIN_SCOPE
         self.registers = set([RESULT, ZERO, JUMP_LABEL])
         self.arg_count = 0
         self.label_count = 0
+        self.local_count = 0
         self.lines = []
         self.li(ZERO, 0)
     
@@ -40,30 +44,53 @@ class Visitor(ast.NodeVisitor):
         label_name = f"label-{self.label_count}"
         return label_name
 
+    def add_local(self):
+        self.local_count += 1
+        local_name = f"arg-{self.local_count}"
+        self.registers.add(local_name)
+        return local_name 
+
     def rem_arg(self):
         self.arg_count -= 1
+
+    def rem_local(self):
+        self.local_count -= 1
+
+    def get_local_namespace(self):
+        return self.namespaces[self.scope]
+
+    def get_or_create_name(self, name):
+        namespace = self.get_local_namespace()
+        if name in namespace:
+            id = namespace[name]
+        else:
+            id = self.add_local()
+            namespace[name] = id
+        return id
 
     def visit_Assign(self, node):
         if (len(node.targets) > 1):
             panic("Multiple assignment targets")
         self.visit(node.value)
-        target = node.targets[0].id
-        self.registers.add(target)
-        self.cp(target, RESULT)
+        name = node.targets[0].id
+
+        reg = self.get_or_create_name(name)
+        self.cp(reg, RESULT)
 
     def visit_AugAssign(self, node):
         self.visit(node.value)
-        target = node.target.id
+        name = node.target.id
+        reg = self.get_or_create_name(name)
         if isinstance(node.op, ast.Add):
-            self.add(target, target, RESULT)
+            self.add(reg, reg, RESULT)
         elif isinstance(node.op, ast.Sub):
-            self.sub(target, target, RESULT)
+            self.sub(reg, reg, RESULT)
         elif isinstance(node.op, ast.Mult):
-            self.mul(target, target, RESULT)
+            self.mul(reg, reg, RESULT)
         elif isinstance(node.op, ast.FloorDiv):
-            self.div(target, target, RESULT)
+            self.div(reg, reg, RESULT)
         elif isinstance(node.op, ast.Mod):
-            self.rem(target, target, RESULT)
+            self.rem(reg, reg, RESULT)
         else:
             panic("Unsupported binary operator.", node.lineno)
 
@@ -164,9 +191,12 @@ class Visitor(ast.NodeVisitor):
             panic("Unsupported function call.", node.lineno)
     
     def visit_Name(self, node):
-        if (node.id not in self.registers):
+        namespace = self.get_local_namespace()
+        if (node.id not in namespace):
             panic("Unknown name.", node.lineno)
-        self.cp(RESULT, node.id)
+
+        reg = namespace[node.id]
+        self.cp(RESULT, reg)
 
     def visit_If(self, node):
         self.visit(node.test)
