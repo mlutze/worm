@@ -43,6 +43,14 @@ print(a)
 """
         self.do_test_script(script, "")
 
+    def test_augassign(self):
+        script = """
+a = 10
+a += 5
+print(a)
+"""
+        self.do_test_script(script, "")
+
     def test_binop(self):
         script = "print(1 + 2)"
         self.do_test_script(script, "")
@@ -57,6 +65,15 @@ if 1 == 2:
     print(3)
 else:
     print(4)
+"""
+        self.do_test_script(script, "")
+
+    def test_while(self):
+        script = """
+i = 10
+while i > 0:
+    print(i)
+    i -= 1
 """
         self.do_test_script(script, "")
 

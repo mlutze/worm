@@ -53,7 +53,7 @@ class Visitor(ast.NodeVisitor):
 
     def visit_AugAssign(self, node):
         self.visit(node.value)
-        target = node.target
+        target = node.target.id
         if isinstance(node.op, ast.Add):
             self.add(target, target, RESULT)
         elif isinstance(node.op, ast.Sub):
@@ -192,15 +192,15 @@ class Visitor(ast.NodeVisitor):
         
         self.label(start_label)
         self.visit(node.test)
-        self.jeqz(RESULT, end_label)
+        self.jeqz_to(RESULT, end_label)
         for subnode in node.body:
             if isinstance(subnode, ast.Break):
-                self.j(end_label)
+                self.j_to(end_label)
             elif isinstance(subnode, ast.Continue):
-                self.j(start_label)
+                self.j_to(start_label)
             else:
                 self.visit(subnode)
-        self.j(start_label)
+        self.j_to(start_label)
         self.label(end_label)
 
     def visit_FunctionDef(self, node):
