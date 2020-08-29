@@ -426,7 +426,7 @@ class Visitor(ast.NodeVisitor):
     def get_code(self):
         if len(self.registers) > 32:
             panic("Expression stack overflow.", -1)
-        allo_regs = ["allocate-registers " + ", ".join(self.registers)]
+        allo_regs = ["allocate-registers " + ", ".join(sorted(self.registers))]
         loads = [f"li {ZERO}, 0", f"li {ONE}, 1", f"li {STACK_POINTER}, 0"]
         halt = ["halt"]
         return allo_regs + loads + self.lines + halt
