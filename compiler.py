@@ -58,7 +58,6 @@ class Visitor(ast.NodeVisitor):
         self.registers = set([RESULT, ZERO, ONE, JUMP_LABEL, STACK_POINTER])
         self.arg_count = 0
         self.label_count = 0
-        self.local_count = 0
         self.lines = []
     
     def add_arg(self):
@@ -77,9 +76,6 @@ class Visitor(ast.NodeVisitor):
 
     def rem_arg(self):
         self.arg_count -= 1
-
-    def rem_local(self):
-        self.local_count -= 1
 
     def get_local_namespace(self):
         if self.scope in self.namespaces:
@@ -184,6 +180,7 @@ class Visitor(ast.NodeVisitor):
             self.sge(RESULT, arg, RESULT)
         else:
             panic("Unsupported comparison operator.", node.lineno)
+        self.rem_arg()
         
             
     def visit_Constant(self, node):
@@ -231,7 +228,7 @@ class Visitor(ast.NodeVisitor):
             func_label = self.get_func_label(func)
             for i in range(self.arg_count):
                 self.push(f"arg-{i}")
-            for i in range(self.local_count):
+            for i in range(self.get_local_namespace().local_count):
                 self.push(f"local-{i}")
             self.li(JUMP_LABEL, return_label)
             self.push(JUMP_LABEL)
@@ -240,7 +237,7 @@ class Visitor(ast.NodeVisitor):
                 self.push(RESULT)
             self.j_to(func_label)
             self.label(return_label)
-            for i in reversed(range(self.local_count)):
+            for i in reversed(range(self.get_local_namespace().local_count)):
                 self.pop(f"local-{i}")
             for i in reversed(range(self.arg_count)):
                 self.pop(f"arg-{i}")
@@ -266,6 +263,11 @@ class Visitor(ast.NodeVisitor):
         for subnode in node.orelse:
             self.visit(subnode)
         self.label(end_label)
+
+    def visit_Return(self, node):
+        self.visit(node.value)
+        self.pop(JUMP_LABEL)
+        self.j(JUMP_LABEL)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.UAdd):
@@ -308,12 +310,7 @@ class Visitor(ast.NodeVisitor):
             reg = self.get_or_create_name(arg.arg)
             self.pop(reg)
         for subnode in node.body:
-            if isinstance(subnode, ast.Return): # TODO need to handle return in nested exprs
-                self.visit(subnode.value)
-                self.pop(JUMP_LABEL)
-                self.j(JUMP_LABEL)
-            else:
-                self.visit(subnode)
+            self.visit(subnode)
         self.pop(JUMP_LABEL)
         self.j(JUMP_LABEL)
         self.label(end_label)

@@ -106,7 +106,6 @@ print(int(f(3)))
 """
         self.do_test_script(script, "")
 
-    @unittest.skip
     def test_recursion(self):
         script = """
 def fact(x):
@@ -119,8 +118,61 @@ print(int(fact(10)))
 """
         self.do_test_script(script, "")
 
-    @unittest.skip
     def test_multiple_recursion(self):
+        script = """
+def fib(x):
+    if x <= 1:
+        return x
+    else:
+        return fib(x - 1) + fib(x - 2)
+
+print(int(fib(4)))
+"""
+        self.do_test_script(script, "")
+
+    def test_multiple_recursion_2(self):
+        script = """
+def fib(x):
+    if x <= 1:
+        return x
+    else:
+        a = fib(x - 1)
+        b = fib(x - 2)
+        return a + b
+print(int(fib(4)))
+"""
+        self.do_test_script(script, "")
+
+    def test_multiple_recursion_3(self):
+        script = """
+def fib(x):
+    if x <= 1:
+        return x
+    else:
+        x1 = x - 1
+        x2 = x - 2
+        return fib(x1) + fib(x2)
+
+print(int(fib(4)))
+"""
+        self.do_test_script(script, "")
+    
+    def test_multiple_recursion_4(self):
+        script = """
+def fib(x):
+    if x <= 1:
+        return x
+    else:
+        x1 = x - 1
+        x2 = x - 2
+        a = fib(x1)
+        b = fib(x2)
+        return a + b
+print(int(fib(4)))
+"""
+        self.do_test_script(script, "")
+
+    def test_multiple_recursion_x(self):
         script = """
 def choose(n, k):
     if (k == 0):
