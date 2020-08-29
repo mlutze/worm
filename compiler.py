@@ -3,6 +3,7 @@
 import sys
 import ast
 import fileinput
+import collections
 
 # constants
 RESULT = "result"
@@ -57,10 +58,10 @@ class Visitor(ast.NodeVisitor):
         self.scope = MAIN_SCOPE
         self.registers = set([RESULT, ZERO, ONE, JUMP_LABEL, STACK_POINTER])
         self.arg_count = 0
-        self.label_count = 0
         self.lines = []
         self.break_labels = []
         self.continue_labels = []
+        self.label_counts = collections.Counter()
     
     def add_arg(self):
         arg_name = f"arg-{self.arg_count}"
@@ -68,13 +69,13 @@ class Visitor(ast.NodeVisitor):
         self.registers.add(arg_name)
         return arg_name
 
-    def add_label(self):
-        label_name = f"label-{self.label_count}"
-        self.label_count += 1
+    def add_label(self, name="label"):
+        self.label_counts[name] += 1
+        label_name = f"{name}-{self.label_counts[name]}"
         return label_name
 
     def get_func_label(self, name):
-        return f"label-{name}"
+        return f"def-{name}"
 
     def rem_arg(self):
         self.arg_count -= 1
@@ -146,8 +147,8 @@ class Visitor(ast.NodeVisitor):
             panic("Non-binary boolean operator.", node.lineno) # TODO handle chains
         left, right = node.values
         self.visit(left)
-        end_label = self.add_label()
-        next_label = self.add_label()
+        end_label = self.add_label("boolop-end")
+        next_label = self.add_label("boolop-next")
         if isinstance(node.op, ast.And):
             self.jeqz_to(RESULT, end_label)
             self.visit(right)
@@ -226,7 +227,7 @@ class Visitor(ast.NodeVisitor):
                 panic("Int call not wrapping input.", node.lineno)
             self.read(RESULT)
         else:
-            return_label = self.add_label()
+            return_label = self.add_label("return")
             func_label = self.get_func_label(func)
             for i in range(self.arg_count):
                 self.push(f"arg-{i}")
@@ -254,8 +255,8 @@ class Visitor(ast.NodeVisitor):
 
     def visit_If(self, node):
         self.visit(node.test)
-        false_label = self.add_label()
-        end_label = self.add_label()
+        false_label = self.add_label("else")
+        end_label = self.add_label("end-if")
         
         self.jeqz_to(RESULT, false_label)
         for subnode in node.body:
@@ -285,8 +286,8 @@ class Visitor(ast.NodeVisitor):
 
 
     def visit_While(self, node):
-        start_label = self.add_label()
-        end_label = self.add_label()
+        start_label = self.add_label("start-while")
+        end_label = self.add_label("end-while")
 
         self.continue_labels.append(start_label)
         self.break_labels.append(end_label)
@@ -310,7 +311,7 @@ class Visitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         func_label = self.get_func_label(node.name)
-        end_label = self.add_label()
+        end_label = self.add_label(f"end-{node.name}")
         self.enter_scope(node.name)
         
         self.j_to(end_label) # don't execute when defining function
