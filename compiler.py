@@ -59,6 +59,8 @@ class Visitor(ast.NodeVisitor):
         self.arg_count = 0
         self.label_count = 0
         self.lines = []
+        self.break_labels = []
+        self.continue_labels = []
     
     def add_arg(self):
         arg_name = f"arg-{self.arg_count}"
@@ -234,7 +236,7 @@ class Visitor(ast.NodeVisitor):
             self.push(JUMP_LABEL)
             for arg in node.args:
                 self.visit(arg)
-                self.push(RESULT)
+                self.push(RESULT) # TODO just write to local registers instead of pushing?
             self.j_to(func_label)
             self.label(return_label)
             for i in reversed(range(self.get_local_namespace().local_count)):
@@ -285,19 +287,26 @@ class Visitor(ast.NodeVisitor):
     def visit_While(self, node):
         start_label = self.add_label()
         end_label = self.add_label()
+
+        self.continue_labels.append(start_label)
+        self.break_labels.append(end_label)
         
         self.label(start_label)
         self.visit(node.test)
         self.jeqz_to(RESULT, end_label)
         for subnode in node.body:
-            if isinstance(subnode, ast.Break): # TODO need to handle break and continue in nested exprs
-                self.j_to(end_label)
-            elif isinstance(subnode, ast.Continue):
-                self.j_to(start_label)
-            else:
-                self.visit(subnode)
+            self.visit(subnode)
         self.j_to(start_label)
         self.label(end_label)
+        
+        self.continue_labels.pop()
+        self.break_labels.pop()
+
+    def visit_Break(self, node):
+        self.j_to(self.break_labels[-1])
+
+    def visit_Continue(self, node):
+        self.j_to(self.continue_labels[-1])
 
     def visit_FunctionDef(self, node):
         func_label = self.get_func_label(node.name)

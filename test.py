@@ -185,5 +185,62 @@ print(int(choose(10, 4)))
 """
         self.do_test_script(script, "")
 
+    def test_break(self):
+        script = """
+x = 0
+while True:
+    print(int(x))
+    x += 1
+    if x > 5:
+        break
+"""
+        self.do_test_script(script, "")
+
+    def test_nested_break(self):
+        script = """
+x = 0
+y = 0
+while True:
+    x = 0
+    while True:
+        print(int(x))
+        print(int(y))
+        x += 1
+        if x > 5:
+            break
+    if y > 3:
+        break
+    y += 1
+"""
+        self.do_test_script(script, "")
+
+    def test_continue(self):
+        script = """
+x = 0
+while x < 9:
+    x += 1
+    if x % 2 == 0:
+        continue
+    print(int(x))
+"""
+        self.do_test_script(script, "")
+
+    def test_nested_continue(self):
+        script = """
+x = 0
+y = 0
+while y < 10:
+    y += 1
+    x = 0
+    if y % 3 == 0:
+        continue
+    while x < 5:
+        x += 1
+        if x % 2 == 0:
+            continue
+"""
+        self.do_test_script(script, "")
+
+
 if __name__ == "__main__":
     unittest.main()
