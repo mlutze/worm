@@ -40,9 +40,8 @@ class Namespace:
         return id
 
     def add_local(self):
-        local_name = f"local-{self.local_count}"
+        local_name = self.visitor.local(self.local_count)
         self.local_count += 1
-        self.visitor.registers.add(local_name)
         return local_name 
 
     def __contains__(self, item):
@@ -51,6 +50,8 @@ class Namespace:
     def __getitem__(self, item):
         return self.names[item]
 
+    def __setitem__(self, item, value):
+        self.names[item] = value
 
 class Visitor(ast.NodeVisitor):
     def __init__(self):
@@ -62,11 +63,20 @@ class Visitor(ast.NodeVisitor):
         self.break_labels = []
         self.continue_labels = []
         self.label_counts = collections.Counter()
+
+    def arg(self, n):
+        arg_name = f"arg-{n}"
+        self.registers.add(arg_name)
+        return arg_name
+
+    def local(self, n):
+        local_name = f"local-{n}"
+        self.registers.add(local_name)
+        return local_name
     
     def add_arg(self):
-        arg_name = f"arg-{self.arg_count}"
+        arg_name = self.arg(self.arg_count)
         self.arg_count += 1
-        self.registers.add(arg_name)
         return arg_name
 
     def add_label(self, name="label"):
@@ -230,20 +240,20 @@ class Visitor(ast.NodeVisitor):
             return_label = self.add_label("return")
             func_label = self.get_func_label(func)
             for i in range(self.arg_count):
-                self.push(f"arg-{i}")
+                self.push(self.arg(i))
             for i in range(self.get_local_namespace().local_count):
-                self.push(f"local-{i}")
+                self.push(self.local(i))
             self.li(JUMP_LABEL, return_label)
             self.push(JUMP_LABEL)
-            for arg in node.args:
+            for i, arg in enumerate(node.args):
                 self.visit(arg)
-                self.push(RESULT) # TODO just write to local registers instead of pushing?
+                self.cp(self.local(i), RESULT)
             self.j_to(func_label)
             self.label(return_label)
             for i in reversed(range(self.get_local_namespace().local_count)):
-                self.pop(f"local-{i}")
+                self.pop(self.local(i))
             for i in reversed(range(self.arg_count)):
-                self.pop(f"arg-{i}")
+                self.pop(self.arg(i))
     
     def visit_Name(self, node):
         namespace = self.get_local_namespace()
@@ -316,9 +326,8 @@ class Visitor(ast.NodeVisitor):
         
         self.j_to(end_label) # don't execute when defining function
         self.label(func_label)
-        for arg in reversed(node.args.args): # TODO handle kwargs, defaults, etc.
-            reg = self.get_or_create_name(arg.arg)
-            self.pop(reg)
+        for arg in node.args.args: # TODO handle kwargs, defaults, etc.
+            self.get_or_create_name(arg.arg) # NB: these must be the first names created in this NS
         for subnode in node.body:
             self.visit(subnode)
         self.pop(JUMP_LABEL)
