@@ -241,6 +241,14 @@ while y < 10:
 """
         self.do_test_script(script, "")
 
+    def test_walrus(self):
+        script = """
+x = 0
+while (x := x + 1) < 10:
+    print(int(x))
+"""
+        self.do_test_script(script, "")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -263,6 +263,13 @@ class Visitor(ast.NodeVisitor):
         reg = namespace[node.id]
         self.cp(RESULT, reg)
 
+    def visit_NamedExpr(self, node):
+        self.visit(node.value)
+        name = node.target.id
+
+        reg = self.get_or_create_name(name)
+        self.cp(reg, RESULT)
+
     def visit_If(self, node):
         self.visit(node.test)
         false_label = self.add_label("else")
