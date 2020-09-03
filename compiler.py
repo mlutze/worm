@@ -32,6 +32,7 @@ class Namespace:
         self.local_count = 0
 
     def get_or_create_name(self, name):
+        """Gets the register for the name, allocating a new one if necessary."""
         if name in self.names:
             id = self.names[name]
         else:
@@ -40,6 +41,8 @@ class Namespace:
         return id
 
     def add_local(self):
+        """Adds an anonymous local variable to the namespace."""
+
         local_name = self.visitor.local(self.local_count)
         self.local_count += 1
         return local_name 
@@ -65,29 +68,35 @@ class Visitor(ast.NodeVisitor):
         self.label_counts = collections.Counter()
 
     def arg(self, n):
+        """Gets the name for an arg register and allocate it if necessary."""
         arg_name = f"arg-{n}"
         self.registers.add(arg_name)
         return arg_name
 
     def local(self, n):
+        """Gets the name for a local register and allocate it if necessary."""
         local_name = f"local-{n}"
         self.registers.add(local_name)
         return local_name
     
     def add_arg(self):
+        """Gets the name for an anonymous arg and allocate it if necessary."""
         arg_name = self.arg(self.arg_count)
         self.arg_count += 1
         return arg_name
 
     def add_label(self, name="label"):
+        """Gets the name for an anonymous local and allocate it if necessary."""
         self.label_counts[name] += 1
         label_name = f"{name}-{self.label_counts[name]}"
         return label_name
 
     def get_func_label(self, name):
+        """Gets a label pointing to the head of the named function."""
         return f"def-{name}"
 
     def rem_arg(self):
+        """Removes an arg from the arg count."""
         self.arg_count -= 1
 
     def get_local_namespace(self):
@@ -98,6 +107,7 @@ class Visitor(ast.NodeVisitor):
             return self.namespaces[self.scope]
 
     def get_or_create_name(self, name):
+        """Get a name from the current namespace, creating it if necessary."""
         namespace = self.get_local_namespace()
         return namespace.get_or_create_name(name)
 
