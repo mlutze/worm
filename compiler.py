@@ -181,6 +181,9 @@ class Visitor(ast.NodeVisitor):
             panic("Unsupported boolean operator.", node.lineno)
         self.label(end_label)
 
+    def visit_Break(self, node):
+        self.j_to(self.break_labels[-1])
+
     def visit_Compare(self, node):
         if len(node.ops) != 1:
             panic("Chained comparison.", node.lineno)
@@ -204,12 +207,14 @@ class Visitor(ast.NodeVisitor):
         else:
             panic("Unsupported comparison operator.", node.lineno)
         self.rem_arg()
-        
             
     def visit_Constant(self, node):
         if not(isinstance(node.value, int)):
             panic("Non-integer literal.", node.lineno)
         self.li(RESULT, int(node.value)) 
+
+    def visit_Continue(self, node):
+        self.j_to(self.continue_labels[-1])
 
     def visit_Call(self, node): # will need to handle non-name functions
         func = node.func.id
@@ -265,6 +270,23 @@ class Visitor(ast.NodeVisitor):
             for i in reversed(range(self.arg_count)):
                 self.pop(self.arg(i))
     
+    def visit_FunctionDef(self, node):
+        func_label = self.get_func_label(node.name)
+        end_label = self.add_label(f"end-{node.name}")
+        self.enter_scope(node.name)
+        
+        self.j_to(end_label) # don't execute when defining function
+        self.label(func_label)
+        for arg in node.args.args: # TODO handle kwargs, defaults, etc.
+            self.get_or_create_name(arg.arg) # NB: these must be the first names created in this NS
+        for subnode in node.body:
+            self.visit(subnode)
+        self.pop(JUMP_LABEL)
+        self.j(JUMP_LABEL)
+        self.label(end_label)
+        
+        self.exit_scope()
+
     def visit_Name(self, node):
         namespace = self.get_local_namespace()
         if (node.id not in namespace):
@@ -330,28 +352,8 @@ class Visitor(ast.NodeVisitor):
         self.continue_labels.pop()
         self.break_labels.pop()
 
-    def visit_Break(self, node):
-        self.j_to(self.break_labels[-1])
 
-    def visit_Continue(self, node):
-        self.j_to(self.continue_labels[-1])
-
-    def visit_FunctionDef(self, node):
-        func_label = self.get_func_label(node.name)
-        end_label = self.add_label(f"end-{node.name}")
-        self.enter_scope(node.name)
-        
-        self.j_to(end_label) # don't execute when defining function
-        self.label(func_label)
-        for arg in node.args.args: # TODO handle kwargs, defaults, etc.
-            self.get_or_create_name(arg.arg) # NB: these must be the first names created in this NS
-        for subnode in node.body:
-            self.visit(subnode)
-        self.pop(JUMP_LABEL)
-        self.j(JUMP_LABEL)
-        self.label(end_label)
-        
-        self.exit_scope()
+    # === SLIM Instructions === #
 
     def add(self, dest, src1, src2):
         self.do("add", dest, src1, src2)
