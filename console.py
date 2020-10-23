@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Console(ABC):
 
     @abstractmethod
@@ -15,12 +16,13 @@ class StdIoConsole(Console):
 
     def __init__(self, prompt):
         self.prompt = prompt
-    
+
     def read(self):
         return input(self.prompt)
 
     def write(self, message):
         print(message)
+
 
 class StaticConsole(Console):
 
