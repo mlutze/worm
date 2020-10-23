@@ -459,14 +459,17 @@ class Visitor(ast.NodeVisitor):
         return allo_regs + loads + self.lines + halt
 
 
+class Compiler:
+    def compile(self, code):
+        visitor = Visitor()
+        tree = ast.parse(code)
+        visitor.visit(tree)
+        return "".join(line + "\n" for line in visitor.get_code())
+
+
 def main():
-    visitor = Visitor()
-    code = read_input()
-    tree = ast.parse(code)
-    visitor.visit(tree)
-    output = visitor.get_code()
-    for line in output:
-        print(line)
+    output = Compiler().compile(read_input())
+    print(output)
 
 
 if __name__ == "__main__":

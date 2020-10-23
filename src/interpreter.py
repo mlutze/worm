@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from console import Console, StdIoConsole
+from src.console import Console, StdIoConsole
 from typing import Dict, List, Union, NamedTuple
 import re
 import sys
@@ -78,7 +78,8 @@ def parse_slim(lines: List[str]) -> List[Line]:
         elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
             names = [name.strip() for name in match[1].split(",")]
             return Alloc(names)
-        elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" + NAME_REGEX + r"|\d+))*)?", line):
+        elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" +
+                                   NAME_REGEX + r"|\d+))*)?", line):
             cmd = match[1]
             arg_string = match[2]
             if arg_string is None:
@@ -95,7 +96,8 @@ def parse_slim(lines: List[str]) -> List[Line]:
 
 # questions:
 # can we allocate registers after commands -- yes
-# what happens if we allocate more than 32 registers? -- says "no more registers available for $reg"; does this for each error
+# what happens if we allocate more than 32 registers?
+# -- says "no more registers available for $reg"; does this for each error
 # what happens if we put 2 labels in a row? -- nothing special
 # what happens if we put a label ahead of nothing -- ignored
 # what happens if we allocate the same register twice? "Register name 'b'
@@ -144,7 +146,7 @@ def compile_slim(lines: List[Line]) -> List[Line]:
 
 
 class SLIM:
-    def __init__(self, commands: List[Command], console: Console):
+    def __init__(self, commands: List[Line], console: Console):
         self.mem: Dict[int, int] = {}
         self.registers = [0 for _ in range(32)]
         self.commands = commands
@@ -247,16 +249,26 @@ class SLIM:
             self.next_line()
 
     def halt(self):
-        exit(0)
+        self.next_line()  # TODO stop iteration
+
+
+class Interpreter:
+
+    def __init__(self, console: Console):
+        self.console = console
+
+    def interpret(self, code: str) -> None:
+        lines = code.splitlines()
+        parsed = parse_slim(lines)
+        compiled = compile_slim(parsed)
+        slim = SLIM(compiled, self.console)
+        slim.execute()
 
 
 def main():
     with open(sys.argv[1]) as input_file:
         lines = [line for line in input_file.readlines()]
-    parsed = parse_slim(lines)
-    compiled = compile_slim(parsed)
-    slim = SLIM(compiled, StdIoConsole(""))
-    slim.execute()
+    Interpreter(StdIoConsole("")).interpret("".join(lines))
 
 
 if __name__ == "__main__":

@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
-import subprocess
-import tempfile
+from src.interpreter import Interpreter
+from src.console import StaticConsole
+from src.compiler import Compiler
 import unittest
+import sys
+from typing import List
+
+sys.path.append("../src")
 
 
-def make_temp_file(contents: str) -> str:
-    _, tmppath = tempfile.mkstemp(dir="/tmp", text=True)
-    with open(tmppath, "w") as tmpfile:
-        tmpfile.write(contents)
-        tmpfile.close()
-    return tmppath
+def execute_python(script: str, input: str) -> List[str]:
+    input_lines = iter(input.splitlines())
+
+    output_lines: List[str] = []
+    env = {
+        "print": output_lines.append,
+        "input": input_lines.__next__
+    }
+    exec(script, env)
+    return [str(i) for i in output_lines]
 
 
-def execute_python(script: str, input: str) -> str:
-    script_path = make_temp_file(script)
+def execute_worm(script: str, input: str) -> List[str]:
+    console = StaticConsole(input)
+    compiler = Compiler()
+    interpreter = Interpreter(console)
 
-    result = subprocess.run(
-        ["python3", script_path], input=input, text=True, capture_output=True, timeout=1)
-    return result.stdout
+    slim_code = compiler.compile(script)
+    interpreter.interpret(slim_code)
 
-
-def execute_worm(script: str, input: str) -> str:
-    script_path = make_temp_file(script)
-    compiler_result = subprocess.run(
-        ["./compiler.py", script_path], text=True, capture_output=True, timeout=1)
-
-    slim_path = make_temp_file(compiler_result.stdout)
-    slim_result = subprocess.run(
-        ["./interpreter.py", slim_path], input=input, text=True, capture_output=True, timeout=1)
-
-    return slim_result.stdout
+    return console.output
 
 
 class CompilerTest(unittest.TestCase):
