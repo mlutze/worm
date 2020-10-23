@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from console import Console, StdIoConsole
 from typing import Dict, List, Union, NamedTuple
 import re
 import sys
@@ -143,11 +144,12 @@ def compile_slim(lines: List[Line]) -> List[Line]:
 
 
 class SLIM:
-    def __init__(self, commands: List[Command]):
+    def __init__(self, commands: List[Command], console: Console):
         self.mem: Dict[int, int] = {}
         self.registers = [0 for _ in range(32)]
         self.commands = commands
         self.pointer = 0
+        self.console = console
 
     def execute(self):
         while 0 <= self.pointer < len(self.commands):
@@ -228,11 +230,11 @@ class SLIM:
         self.next_line()
 
     def read(self, dest):
-        self.registers[dest] = int(input())
+        self.registers[dest] = int(self.console.read())
         self.next_line()
 
     def write(self, src):
-        print(self.registers[src])
+        self.console.write(str(self.registers[src]))
         self.next_line()
 
     def j(self, addr):
@@ -253,7 +255,7 @@ def main():
         lines = [line for line in input_file.readlines()]
     parsed = parse_slim(lines)
     compiled = compile_slim(parsed)
-    slim = SLIM(compiled)
+    slim = SLIM(compiled, StdIoConsole(""))
     slim.execute()
 
 
