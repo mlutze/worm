@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-from collections import namedtuple
 from typing import Dict, List, Union, NamedTuple
 import re
 import sys
 
 # non-digit followed by anything but whitespace or comma
-NAME_REGEX = "[\D][^\s,]*"
+NAME_REGEX = r"[\D][^\s,]*"
 COMMANDS = [
     "add", "sub", "mul", "div", "quo", "rem",
     "seq", "sne", "slt", "sgt", "sle", "sge",
@@ -98,7 +97,8 @@ def parse_slim(lines: List[str]) -> List[Line]:
 # what happens if we allocate more than 32 registers? -- says "no more registers available for $reg"; does this for each error
 # what happens if we put 2 labels in a row? -- nothing special
 # what happens if we put a label ahead of nothing -- ignored
-# what happens if we allocate the same register twice? "Register name 'b' already in use on line 1."; does this for each error
+# what happens if we allocate the same register twice? "Register name 'b'
+# already in use on line 1."; does this for each error
 def compile_slim(lines: List[Line]) -> List[Line]:
     registers: List[str] = []
     for line in lines:
@@ -138,7 +138,8 @@ def compile_slim(lines: List[Line]) -> List[Line]:
         args = [resolve_arg(arg) for arg in command.args]
         return Command(command.cmd, args)
 
-    return [resolve_command(labeled_command[1]) for labeled_command in labeled_commands]
+    return [resolve_command(labeled_command[1])
+            for labeled_command in labeled_commands]
 
 
 class SLIM:
