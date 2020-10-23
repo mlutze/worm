@@ -10,20 +10,25 @@ RESULT = "result"
 JUMP_LABEL = "jump-label"
 ZERO = "zero"
 ONE = "one"
-STACK_POINTER = "stack-pointer" # always points at next empty slot in stack
+STACK_POINTER = "stack-pointer"  # always points at next empty slot in stack
 MAIN_SCOPE = ""
 
 # TODO: update to distinguish input files
+
+
 def read_input():
     return "".join(line for line in fileinput.input())
 
+
 def error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
 
 def panic(message, line):
     error(f"Error on line {line}:")
     error(message)
     exit(1)
+
 
 class Namespace:
     def __init__(self, visitor):
@@ -45,7 +50,7 @@ class Namespace:
 
         local_name = self.visitor.local(self.local_count)
         self.local_count += 1
-        return local_name 
+        return local_name
 
     def __contains__(self, item):
         return item in self.names
@@ -55,6 +60,7 @@ class Namespace:
 
     def __setitem__(self, item, value):
         self.names[item] = value
+
 
 class Visitor(ast.NodeVisitor):
     def __init__(self):
@@ -78,7 +84,7 @@ class Visitor(ast.NodeVisitor):
         local_name = f"local-{n}"
         self.registers.add(local_name)
         return local_name
-    
+
     def add_arg(self):
         """Gets the name for an anonymous arg and allocate it if necessary."""
         arg_name = self.arg(self.arg_count)
@@ -164,7 +170,8 @@ class Visitor(ast.NodeVisitor):
 
     def visit_BoolOp(self, node):
         if (len(node.values) != 2):
-            panic("Non-binary boolean operator.", node.lineno) # TODO handle chains
+            panic("Non-binary boolean operator.",
+                  node.lineno)  # TODO handle chains
         left, right = node.values
         self.visit(left)
         end_label = self.add_label("boolop-end")
@@ -207,18 +214,18 @@ class Visitor(ast.NodeVisitor):
         else:
             panic("Unsupported comparison operator.", node.lineno)
         self.rem_arg()
-            
+
     def visit_Constant(self, node):
         if not(isinstance(node.value, int)):
             panic("Non-integer literal.", node.lineno)
-        self.li(RESULT, int(node.value)) 
+        self.li(RESULT, int(node.value))
 
     def visit_Continue(self, node):
         self.j_to(self.continue_labels[-1])
 
-    def visit_Call(self, node): # will need to handle non-name functions
+    def visit_Call(self, node):  # will need to handle non-name functions
         func = node.func.id
-        if func == "print": 
+        if func == "print":
             if len(node.args) != 1:
                 panic("Non-single print arguments.", node.lineno)
             elif node.keywords != []:
@@ -269,22 +276,23 @@ class Visitor(ast.NodeVisitor):
                 self.pop(self.local(i))
             for i in reversed(range(self.arg_count)):
                 self.pop(self.arg(i))
-    
+
     def visit_FunctionDef(self, node):
         func_label = self.get_func_label(node.name)
         end_label = self.add_label(f"end-{node.name}")
         self.enter_scope(node.name)
-        
-        self.j_to(end_label) # don't execute when defining function
+
+        self.j_to(end_label)  # don't execute when defining function
         self.label(func_label)
-        for arg in node.args.args: # TODO handle kwargs, defaults, etc.
-            self.get_or_create_name(arg.arg) # NB: these must be the first names created in this NS
+        for arg in node.args.args:  # TODO handle kwargs, defaults, etc.
+            # NB: these must be the first names created in this NS
+            self.get_or_create_name(arg.arg)
         for subnode in node.body:
             self.visit(subnode)
         self.pop(JUMP_LABEL)
         self.j(JUMP_LABEL)
         self.label(end_label)
-        
+
         self.exit_scope()
 
     def visit_Name(self, node):
@@ -306,7 +314,7 @@ class Visitor(ast.NodeVisitor):
         self.visit(node.test)
         false_label = self.add_label("else")
         end_label = self.add_label("end-if")
-        
+
         self.jeqz_to(RESULT, false_label)
         for subnode in node.body:
             self.visit(subnode)
@@ -333,14 +341,13 @@ class Visitor(ast.NodeVisitor):
         else:
             panic("Unsupported unary operator.", node.lineno)
 
-
     def visit_While(self, node):
         start_label = self.add_label("start-while")
         end_label = self.add_label("end-while")
 
         self.continue_labels.append(start_label)
         self.break_labels.append(end_label)
-        
+
         self.label(start_label)
         self.visit(node.test)
         self.jeqz_to(RESULT, end_label)
@@ -348,10 +355,9 @@ class Visitor(ast.NodeVisitor):
             self.visit(subnode)
         self.j_to(start_label)
         self.label(end_label)
-        
+
         self.continue_labels.pop()
         self.break_labels.pop()
-
 
     # === SLIM Instructions === #
 
@@ -374,7 +380,6 @@ class Visitor(ast.NodeVisitor):
     def rem(self, dest, src1, src2):
         self.do("rem", dest, src1, src2)
 
-    
     def seq(self, dest, src1, src2):
         self.do("seq", dest, src1, src2)
 
@@ -393,18 +398,15 @@ class Visitor(ast.NodeVisitor):
     def sge(self, dest, src1, src2):
         self.do("sge", dest, src1, src2)
 
-
     def ld(self, dest, addr):
         self.do("ld", dest, addr)
 
     def st(self, src, addr):
         self.do("st", src, addr)
 
-
     def li(self, register, value):
         assert register in self.registers, register
         self.do("li", register, value)
-
 
     def read(self, dest):
         self.do("read", dest)
@@ -412,14 +414,12 @@ class Visitor(ast.NodeVisitor):
     def write(self, src):
         self.do("write", src)
 
-
     def jeqz(self, src, addr):
         self.do("jeqz", src, addr)
 
     def j(self, addr):
         self.do("j", addr)
 
-    
     # === Helper "Instructions" === #
 
     def jeqz_to(self, src, label):
@@ -436,21 +436,20 @@ class Visitor(ast.NodeVisitor):
     def push(self, src):
         self.st(src, STACK_POINTER)
         self.add(STACK_POINTER, STACK_POINTER, ONE)
-    
+
     def pop(self, dest):
         self.sub(STACK_POINTER, STACK_POINTER, ONE)
         self.ld(dest, STACK_POINTER)
-
 
     def do(self, cmd, *args):
         self.lines.append(cmd + " " + ", ".join(str(arg) for arg in args))
 
     def label(self, name):
         self.lines.append(f"{name}:")
-    
+
     def comment(self, text):
         self.lines.append(f";; {text}")
-    
+
     def get_code(self):
         if len(self.registers) > 32:
             panic("Expression stack overflow.", -1)
@@ -458,6 +457,7 @@ class Visitor(ast.NodeVisitor):
         loads = [f"li {ZERO}, 0", f"li {ONE}, 1", f"li {STACK_POINTER}, 0"]
         halt = ["halt"]
         return allo_regs + loads + self.lines + halt
+
 
 def main():
     visitor = Visitor()
@@ -467,8 +467,7 @@ def main():
     output = visitor.get_code()
     for line in output:
         print(line)
-    
+
 
 if __name__ == "__main__":
     main()
-

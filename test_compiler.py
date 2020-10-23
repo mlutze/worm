@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import unittest
 
+
 def make_temp_file(contents: str) -> str:
     _, tmppath = tempfile.mkstemp(dir="/tmp", text=True)
     with open(tmppath, "w") as tmpfile:
@@ -10,20 +11,26 @@ def make_temp_file(contents: str) -> str:
         tmpfile.close()
     return tmppath
 
+
 def execute_python(script: str, input: str) -> str:
     script_path = make_temp_file(script)
-    
-    result = subprocess.run(["python3", script_path], input=input, text=True, capture_output=True, timeout=1)
+
+    result = subprocess.run(
+        ["python3", script_path], input=input, text=True, capture_output=True, timeout=1)
     return result.stdout
+
 
 def execute_worm(script: str, input: str) -> str:
     script_path = make_temp_file(script)
-    compiler_result = subprocess.run(["./compiler.py", script_path], text=True, capture_output=True, timeout=1)
+    compiler_result = subprocess.run(
+        ["./compiler.py", script_path], text=True, capture_output=True, timeout=1)
 
     slim_path = make_temp_file(compiler_result.stdout)
-    slim_result = subprocess.run(["./interpreter.py", slim_path], input=input, text=True, capture_output=True, timeout=1)
+    slim_result = subprocess.run(
+        ["./interpreter.py", slim_path], input=input, text=True, capture_output=True, timeout=1)
 
     return slim_result.stdout
+
 
 class CompilerTest(unittest.TestCase):
 
@@ -156,7 +163,7 @@ def fib(x):
 print(int(fib(4)))
 """
         self.do_test_script(script, "")
-    
+
     def test_multiple_recursion_4(self):
         script = """
 def fib(x):
