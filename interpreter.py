@@ -17,34 +17,45 @@ COMMANDS = [
     "halt"
 ]
 
+
 class Literal(NamedTuple):
     value: int
+
 
 class Name(NamedTuple):
     value: str
 
+
 Value = Union[Literal, Name]
+
 
 class Command(NamedTuple):
     cmd: str
     args: List[Value]
 
+
 class ResolvedCommand(NamedTuple):
     cmd: str
     args: List[int]
 
+
 class Label(NamedTuple):
     name: str
+
 
 class Alloc(NamedTuple):
     names: List[str]
 
+
 class Noop(NamedTuple):
     pass
+
 
 Line = Union[Command, Label, Alloc, Noop]
 
 # parse lines of code into proper syntactic lines
+
+
 def parse_slim(lines: List[str]) -> List[Line]:
 
     # removes comments and leading/trailing whitespace
@@ -61,7 +72,8 @@ def parse_slim(lines: List[str]) -> List[Line]:
     def parse_one(line):
         if line == "":
             return Noop()
-        elif match := re.fullmatch("(" + NAME_REGEX + "):", line): # TODO allow space between name and colon?
+        # TODO allow space between name and colon?
+        elif match := re.fullmatch("(" + NAME_REGEX + "):", line):
             return Label(match[1])
         elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
             names = [name.strip() for name in match[1].split(",")]
@@ -72,11 +84,11 @@ def parse_slim(lines: List[str]) -> List[Line]:
             if arg_string is None:
                 args = []
             else:
-                args = [parse_value(value.strip()) for value in arg_string.split(",")]
+                args = [parse_value(value.strip())
+                        for value in arg_string.split(",")]
             return Command(cmd, args)
         else:
-            pass # TODO throw error
-    
+            pass  # TODO throw error
 
     return [parse_one(clean_line(line)) for line in lines]
 
@@ -93,10 +105,10 @@ def compile_slim(lines: List[Line]) -> List[Line]:
         if isinstance(line, Alloc):
             for name in line.names:
                 if name in registers:
-                    pass # throw error
+                    pass  # throw error
                 else:
                     registers.append(name)
-    
+
     labeled_commands = []
     labels = []
     for line in lines:
@@ -105,9 +117,9 @@ def compile_slim(lines: List[Line]) -> List[Line]:
         elif isinstance(line, Command):
             labeled_commands.append((labels, line))
             labels = []
-   
+
     name_lookup = {}
-     
+
     for i, labeled_command in enumerate(labeled_commands):
         for label in labeled_command[0]:
             name_lookup[label.name] = i
@@ -115,19 +127,19 @@ def compile_slim(lines: List[Line]) -> List[Line]:
     for i, register in enumerate(registers):
         name_lookup[register] = i
 
-
     def resolve_arg(value):
         if isinstance(value, Name):
-            return name_lookup[value.value] # TODO throw specific error
-        else: # literal
+            return name_lookup[value.value]  # TODO throw specific error
+        else:  # literal
             return value.value
 
     def resolve_command(command):
-        args = [resolve_arg(arg) for arg in command.args] #TODO get mad about command name here?
+        # TODO get mad about command name here?
+        args = [resolve_arg(arg) for arg in command.args]
         return Command(command.cmd, args)
 
     return [resolve_command(labeled_command[1]) for labeled_command in labeled_commands]
-    
+
 
 class SLIM:
     def __init__(self, commands: List[Command]):
@@ -149,11 +161,11 @@ class SLIM:
 
     def next_line(self):
         self.pointer += 1
-        
+
     def add(self, dest, src1, src2):
         self.registers[dest] = self.registers[src1] + self.registers[src2]
         self.next_line()
-    
+
     def sub(self, dest, src1, src2):
         self.registers[dest] = self.registers[src1] - self.registers[src2]
         self.next_line()
@@ -174,15 +186,16 @@ class SLIM:
         self.registers[dest] = self.registers[src1] % self.registers[src2]
         self.next_line()
 
-
     def seq(self, dest, src1, src2):
-        self.registers[dest] = int(self.registers[src1] == self.registers[src2])
+        self.registers[dest] = int(
+            self.registers[src1] == self.registers[src2])
         self.next_line()
-    
+
     def sne(self, dest, src1, src2):
-        self.registers[dest] = int(self.registers[src1] != self.registers[src2])
+        self.registers[dest] = int(
+            self.registers[src1] != self.registers[src2])
         self.next_line()
-    
+
     def slt(self, dest, src1, src2):
         self.registers[dest] = int(self.registers[src1] < self.registers[src2])
         self.next_line()
@@ -192,13 +205,14 @@ class SLIM:
         self.next_line()
 
     def sle(self, dest, src1, src2):
-        self.registers[dest] = int(self.registers[src1] <= self.registers[src2])
+        self.registers[dest] = int(
+            self.registers[src1] <= self.registers[src2])
         self.next_line()
 
     def sge(self, dest, src1, src2):
-        self.registers[dest] = int(self.registers[src1] >= self.registers[src2])
+        self.registers[dest] = int(
+            self.registers[src1] >= self.registers[src2])
         self.next_line()
-
 
     def ld(self, dest, addr):
         self.registers[dest] = self.mem[self.registers[addr]]
@@ -208,12 +222,10 @@ class SLIM:
         self.mem[self.registers[addr]] = self.registers[src]
         self.next_line()
 
-    
     def li(self, dest, const):
         self.registers[dest] = const
         self.next_line()
 
-    
     def read(self, dest):
         self.registers[dest] = int(input())
         self.next_line()
@@ -221,7 +233,6 @@ class SLIM:
     def write(self, src):
         print(self.registers[src])
         self.next_line()
-
 
     def j(self, addr):
         self.pointer = self.registers[addr]
@@ -235,6 +246,7 @@ class SLIM:
     def halt(self):
         exit(0)
 
+
 def main():
     with open(sys.argv[1]) as input_file:
         lines = [line for line in input_file.readlines()]
@@ -243,6 +255,6 @@ def main():
     slim = SLIM(compiled)
     slim.execute()
 
+
 if __name__ == "__main__":
     main()
-
