@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+import sys
+from worm.slim.interpreter import Interpreter
+from worm.util.console import StdIoConsole
+
+
+# TODO parse args
+def main():
+    with open(sys.argv[1]) as input_file:
+        lines = [line for line in input_file.readlines()]
+    Interpreter(StdIoConsole(">>> ")).interpret("".join(lines))
+
+
+if __name__ == "__main__":
+    main()

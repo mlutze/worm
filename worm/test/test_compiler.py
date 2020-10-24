@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-from worm.interpreter import Interpreter
-from worm.console import StaticConsole
-from worm.compiler import Compiler
+from worm.slim.interpreter import Interpreter
+from worm.util.console import StaticConsole
+from worm.compiler.compiler import Compiler
 import unittest
 from typing import List
 

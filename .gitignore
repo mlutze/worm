@@ -5,3 +5,7 @@ __pycache__/
 
 # Vim Swap Files
 *.swp
+
+# Intellij
+.idea/
+*.iml

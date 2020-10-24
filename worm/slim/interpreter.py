@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from worm.console import Console, StdIoConsole
+from worm.util.console import Console, StdIoConsole
 from typing import Dict, List, Union, NamedTuple
 import re
 import sys
