@@ -18,6 +18,10 @@ COMMANDS = [
 ]
 
 
+class HaltException(Exception):
+    pass
+
+
 class Literal(NamedTuple):
     value: int
 
@@ -155,12 +159,14 @@ class SLIM:
 
     def execute(self):
         while 0 <= self.pointer < len(self.commands):
-            self.exec_command(self.commands[self.pointer])
-        # TODO halt or something
+            try:
+                self.exec_command(self.commands[self.pointer])
+            except HaltException:
+                break
 
     def exec_command(self, command: Command) -> None:
         if command.cmd not in COMMANDS:
-            raise Exception
+            raise Exception  # TODO specific exception/message
 
         getattr(self, command.cmd)(*command.args)
 
@@ -249,7 +255,7 @@ class SLIM:
             self.next_line()
 
     def halt(self):
-        self.next_line()  # TODO stop iteration
+        raise HaltException
 
 
 class Interpreter:
