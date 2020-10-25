@@ -58,45 +58,61 @@ class Noop(NamedTuple):
 
 Line = Union[Command, Label, Alloc, Noop]
 
+
+class ParseError:
+    def __init__(self, message: str):
+        self.message = message
+
+
+class UnknownOpcodeError(ParseError):
+    def __init__(self, opcode: str, line: int):
+        super().__init__(f"Unknown opcode '{opcode}' in line {line}.")
+
+
+class NoMoreRegisters(ParseError):
+    def __init__(self, register: str):
+        super().__init__(f"No more registers available for '{register}'.")
+
+
 # parse lines of code into proper syntactic lines
-
-
-def parse_slim(lines: List[str]) -> List[Line]:
-
+def parse_slim(lines: List[str]) -> List[Union[Line, ParseError]]:
     # removes comments and leading/trailing whitespace
-    def clean_line(line):
+    def clean_line(line: str) -> str:
         return line.split(";", maxsplit=1)[0].strip()
 
-    def parse_value(value):
+    def parse_value(value: str) -> Value:
         if value.isdecimal():
             return Literal(int(value))
         else:
             return Name(value)
 
     # parses a cleaned line
-    def parse_one(line):
+    def parse_one(line: str, line_num: int) -> Union[Line, ParseError]:
         if line == "":
             return Noop()
         # TODO allow space between name and colon?
         elif match := re.fullmatch("(" + NAME_REGEX + "):", line):
-            return Label(match[1])
+            return Label(match[1])  # type: ignore
         elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
-            names = [name.strip() for name in match[1].split(",")]
+            names = [name.strip() for name in match[1].split(",")]  # type: ignore
             return Alloc(names)
         elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" +
                                    NAME_REGEX + r"|\d+))*)?", line):
-            cmd = match[1]
-            arg_string = match[2]
+            cmd = match[1]  # type: ignore
+            arg_string = match[2]  # type: ignore
             if arg_string is None:
                 args = []
             else:
                 args = [parse_value(value.strip())
                         for value in arg_string.split(",")]
-            return Command(cmd, args)
+            if cmd in COMMANDS:
+                return Command(cmd, args)
+            else:
+                return UnknownOpcodeError(cmd, line_num)
         else:
-            pass  # TODO throw error
+            return Noop()  # TODO throw error
 
-    return [parse_one(clean_line(line)) for line in lines]
+    return [parse_one(clean_line(line), line_num) for line_num, line in enumerate(lines, start=1)]
 
 
 # questions:
@@ -170,9 +186,6 @@ class SLIM:
                 break
 
     def exec_command(self, command: Command) -> None:
-        if command.cmd not in COMMANDS:
-            raise Exception  # TODO specific exception/message
-
         getattr(self, command.cmd)(*command.args)
 
     def next_line(self):
@@ -267,9 +280,20 @@ class Interpreter:
     def interpret(self, code: str) -> None:
         lines = code.splitlines()
         parsed = parse_slim(lines)
-        compiled = compile_slim(parsed)
-        slim = SLIM(compiled, self.console)
-        slim.execute()
+
+        has_error = False
+        commands: List[Line] = []
+        for line in parsed:
+            if isinstance(line, ParseError):
+                has_error = True
+                self.console.write_error(line.message)
+            else:
+                commands.append(line)
+
+        if not has_error:
+            compiled = compile_slim(commands)
+            slim = SLIM(compiled, self.console)
+            slim.execute()
 
 
 def main():

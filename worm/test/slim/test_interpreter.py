@@ -15,12 +15,13 @@ def get_test_file(name: str) -> str:
 
 class InterpreterTest(unittest.TestCase):
 
-    def do_test(self, file_name: str, in_lines: List[str], out_lines: List[str]) -> None:
+    def do_test(self, file_name: str, in_lines: List[str], out_lines: List[str], out_errors: List[str] = None) -> None:
         code = get_test_file(file_name)
         console = StaticConsole(in_lines)
         interpreter = Interpreter(console)
         interpreter.interpret(code)
         self.assertEqual(console.output, out_lines)
+        self.assertEqual(console.error, out_errors or [])
 
     def test_count_to_ten(self):
         expected = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
@@ -59,3 +60,10 @@ class InterpreterTest(unittest.TestCase):
     def test_overflow(self):
         expected = ["-2147483648"]
         self.do_test("overflow.slim", [], expected)
+
+    def test_unknown_opcode(self):
+        expected = [
+            "Unknown opcode 'do' in line 3.",
+            "Unknown opcode 'loop' in line 4.",
+        ]
+        self.do_test("unknown-opcode.slim", [], [], expected)
