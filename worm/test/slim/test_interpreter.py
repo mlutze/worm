@@ -55,3 +55,7 @@ class InterpreterTest(unittest.TestCase):
         in_lines = ["5"]
         expected = ["120"]
         self.do_test("recursive-factorial.slim", in_lines, expected)
+
+    def test_overflow(self):
+        expected = ["-2147483648"]
+        self.do_test("overflow.slim", [], expected)

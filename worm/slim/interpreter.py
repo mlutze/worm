@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-from worm.util.console import Console, StdIoConsole
-from typing import Dict, List, Union, NamedTuple
 import re
 import sys
+from typing import Dict, List, Union, NamedTuple
+
+from worm.util.console import Console, StdIoConsole
 
 # non-digit followed by anything but whitespace or comma
 NAME_REGEX = r"[\D][^\s,]*"
@@ -149,6 +150,10 @@ def compile_slim(lines: List[Line]) -> List[Line]:
             for labeled_command in labeled_commands]
 
 
+def bound_int(i: int) -> int:
+    return (i + 2 ** 31) % (2 ** 32) - 2 ** 31
+
+
 class SLIM:
     def __init__(self, commands: List[Line], console: Console):
         self.mem: Dict[int, int] = {}
@@ -174,37 +179,35 @@ class SLIM:
         self.pointer += 1
 
     def add(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] + self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] + self.registers[src2])
         self.next_line()
 
     def sub(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] - self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] - self.registers[src2])
         self.next_line()
 
     def mul(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] * self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] * self.registers[src2])
         self.next_line()
 
     def div(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] // self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] // self.registers[src2])
         self.next_line()
 
     def quo(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] // self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] // self.registers[src2])
         self.next_line()
 
     def rem(self, dest, src1, src2):
-        self.registers[dest] = self.registers[src1] % self.registers[src2]
+        self.registers[dest] = bound_int(self.registers[src1] % self.registers[src2])
         self.next_line()
 
     def seq(self, dest, src1, src2):
-        self.registers[dest] = int(
-            self.registers[src1] == self.registers[src2])
+        self.registers[dest] = int(self.registers[src1] == self.registers[src2])
         self.next_line()
 
     def sne(self, dest, src1, src2):
-        self.registers[dest] = int(
-            self.registers[src1] != self.registers[src2])
+        self.registers[dest] = int(self.registers[src1] != self.registers[src2])
         self.next_line()
 
     def slt(self, dest, src1, src2):
@@ -216,13 +219,11 @@ class SLIM:
         self.next_line()
 
     def sle(self, dest, src1, src2):
-        self.registers[dest] = int(
-            self.registers[src1] <= self.registers[src2])
+        self.registers[dest] = int(self.registers[src1] <= self.registers[src2])
         self.next_line()
 
     def sge(self, dest, src1, src2):
-        self.registers[dest] = int(
-            self.registers[src1] >= self.registers[src2])
+        self.registers[dest] = int(self.registers[src1] >= self.registers[src2])
         self.next_line()
 
     def ld(self, dest, addr):
