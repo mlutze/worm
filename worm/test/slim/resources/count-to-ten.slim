@@ -1,0 +1,14 @@
+   allocate-registers count, one, ten, loop-start, done
+
+   li count, 1
+   li one, 1
+   li ten, 10
+   li loop-start, the-loop-start
+
+the-loop-start:
+   write count
+   add count, count, one
+   sgt done, count, ten
+   jeqz done, loop-start
+
+   halt

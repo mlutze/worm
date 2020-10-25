@@ -1,0 +1,23 @@
+   allocate-registers a, b, one, factorial-product, end
+
+   li a, 1
+   read b
+   li one, 1
+   li factorial-product, factorial-product-label
+   li end, end-label
+
+factorial-product-label:
+   ;; computes a * b! into a and then jumps to end
+   ;;  provided that b is a non-negative integer;
+   ;;  assumes that the register named one contains 1 and
+   ;;  the factorial-product register contains this address;
+   ;;  may also change the b register's contents
+   jeqz b, end   ; if b = 0, a * b! is already in a
+
+   mul a, a, b   ; otherwise, we can put a * b into a
+   sub b, b, one ; and b - 1 into b, and start the
+   j factorial-product            ; iteration over
+
+end-label:
+   write a
+   halt

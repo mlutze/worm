@@ -1,0 +1,34 @@
+   allocate-registers a, b, one, factorial-product
+   allocate-registers end, n, result, zero
+
+   li one, 1
+   li zero, 0
+   li factorial-product, factorial-product-label
+   read n
+   li a, 1
+   add b, zero, n ; copy n into b by adding zero
+   li end, after-first ; note continuation is after-first
+
+factorial-product-label:
+   ;; computes a * b! into a and then jumps to end
+   ;;  provided that b is a non-negative integer;
+   ;;  assumes that the register named one contains 1 and
+   ;;  the factorial-product register contains this address;
+   ;;  may also change the b register's contents
+   jeqz b, end   ; if b = 0, a * b! is already in a
+
+   mul a, a, b   ; otherwise, we can put a * b into a
+   sub b, b, one ; and b - 1 into b, and start the
+   j factorial-product            ; iteration over
+
+after-first:
+   add result, zero, a    ; save n! away in result
+   li a, 1
+   add b, n, n            ; and set up to do (2n)!,
+   li end, after-second   ; continuing differently after
+   j factorial-product    ; this 2nd factorial-product,
+
+after-second:             ; namely, by
+   add result, result, a  ; adding (2n!) in with n!
+   write result           ; and displaying the sum
+   halt
