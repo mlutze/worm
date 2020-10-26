@@ -59,7 +59,7 @@ class MissingArgumentError(CompilationError):
         self.line = line
 
     def get_message(self) -> str:
-        raise NotImplementedError
+        return f"Missing argument in line {self.line}."
 
 
 class TooManyArgumentsError(CompilationError):
@@ -67,7 +67,7 @@ class TooManyArgumentsError(CompilationError):
         self.line = line
 
     def get_message(self) -> str:
-        raise NotImplementedError
+        return f"Too many arguments in line {self.line}."
 
 
 class BadWordError(CompilationError):
@@ -85,7 +85,7 @@ class UnknownNameError(CompilationError):
         self.line = line
 
     def get_message(self) -> str:
-        raise NotImplementedError
+        return f"Unknown name '{self.name}' in line {self.line}."
 
 
 class ExpectedRegisterError(CompilationError):

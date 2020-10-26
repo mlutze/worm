@@ -67,3 +67,21 @@ class InterpreterTest(unittest.TestCase):
             "Unknown opcode 'loop' in line 4.",
         ]
         self.do_test("unknown-opcode.slim", [], [], expected)
+
+    def test_unknown_name(self):
+        expected = [
+            "Unknown name 'reg' in line 1."
+        ]
+        self.do_test("unknown-name.slim", [], [], expected)
+
+    def test_missing_argument(self):
+        expected = [
+            "Missing argument in line 3."
+        ]
+        self.do_test("missing-argument.slim", [], [], expected)
+
+    def test_too_many_arguments(self):
+        expected = [
+            "Too many arguments in line 3."
+        ]
+        self.do_test("too-many-arguments.slim", [], [], expected)
