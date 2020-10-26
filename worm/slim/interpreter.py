@@ -1,169 +1,16 @@
 #!/usr/bin/env python3
 
-import re
 import sys
-from typing import Dict, List, Union, NamedTuple
+from typing import Dict, List
 
+from worm.slim import parser, namer, resolver
+from worm.slim.resolver import ResolvedCommand
 from worm.util.console import Console, StdIoConsole
-
-# non-digit followed by anything but whitespace or comma
-NAME_REGEX = r"[\D][^\s,]*"
-COMMANDS = [
-    "add", "sub", "mul", "div", "quo", "rem",
-    "seq", "sne", "slt", "sgt", "sle", "sge",
-    "ld", "st",
-    "li",
-    "read", "write",
-    "j", "jeqz",
-    "halt"
-]
+from worm.util.validation import Failure, Success, flatmap
 
 
 class HaltException(Exception):
     pass
-
-
-class Literal(NamedTuple):
-    value: int
-
-
-class Name(NamedTuple):
-    value: str
-
-
-Value = Union[Literal, Name]
-
-
-class Command(NamedTuple):
-    cmd: str
-    args: List[Value]
-
-
-class ResolvedCommand(NamedTuple):
-    cmd: str
-    args: List[int]
-
-
-class Label(NamedTuple):
-    name: str
-
-
-class Alloc(NamedTuple):
-    names: List[str]
-
-
-class Noop(NamedTuple):
-    pass
-
-
-Line = Union[Command, Label, Alloc, Noop]
-
-
-class ParseError:
-    def __init__(self, message: str):
-        self.message = message
-
-
-class UnknownOpcodeError(ParseError):
-    def __init__(self, opcode: str, line: int):
-        super().__init__(f"Unknown opcode '{opcode}' in line {line}.")
-
-
-class NoMoreRegisters(ParseError):
-    def __init__(self, register: str):
-        super().__init__(f"No more registers available for '{register}'.")
-
-
-# parse lines of code into proper syntactic lines
-def parse_slim(lines: List[str]) -> List[Union[Line, ParseError]]:
-    # removes comments and leading/trailing whitespace
-    def clean_line(line: str) -> str:
-        return line.split(";", maxsplit=1)[0].strip()
-
-    def parse_value(value: str) -> Value:
-        if value.isdecimal():
-            return Literal(int(value))
-        else:
-            return Name(value)
-
-    # parses a cleaned line
-    def parse_one(line: str, line_num: int) -> Union[Line, ParseError]:
-        if line == "":
-            return Noop()
-        # TODO allow space between name and colon?
-        elif match := re.fullmatch("(" + NAME_REGEX + "):", line):
-            return Label(match[1])  # type: ignore
-        elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
-            names = [name.strip() for name in match[1].split(",")]  # type: ignore
-            return Alloc(names)
-        elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" +
-                                   NAME_REGEX + r"|\d+))*)?", line):
-            cmd = match[1]  # type: ignore
-            arg_string = match[2]  # type: ignore
-            if arg_string is None:
-                args = []
-            else:
-                args = [parse_value(value.strip())
-                        for value in arg_string.split(",")]
-            if cmd in COMMANDS:
-                return Command(cmd, args)
-            else:
-                return UnknownOpcodeError(cmd, line_num)
-        else:
-            return Noop()  # TODO throw error
-
-    return [parse_one(clean_line(line), line_num) for line_num, line in enumerate(lines, start=1)]
-
-
-# questions:
-# can we allocate registers after commands -- yes
-# what happens if we allocate more than 32 registers?
-# -- says "no more registers available for $reg"; does this for each error
-# what happens if we put 2 labels in a row? -- nothing special
-# what happens if we put a label ahead of nothing -- ignored
-# what happens if we allocate the same register twice? "Register name 'b'
-# already in use on line 1."; does this for each error
-def compile_slim(lines: List[Line]) -> List[Line]:
-    registers: List[str] = []
-    for line in lines:
-        if isinstance(line, Alloc):
-            for name in line.names:
-                if name in registers:
-                    pass  # throw error
-                else:
-                    registers.append(name)
-
-    labeled_commands = []
-    labels = []
-    for line in lines:
-        if isinstance(line, Label):
-            labels.append(line)
-        elif isinstance(line, Command):
-            labeled_commands.append((labels, line))
-            labels = []
-
-    name_lookup = {}
-
-    for i, labeled_command in enumerate(labeled_commands):
-        for label in labeled_command[0]:
-            name_lookup[label.name] = i
-
-    for i, register in enumerate(registers):
-        name_lookup[register] = i
-
-    def resolve_arg(value):
-        if isinstance(value, Name):
-            return name_lookup[value.value]  # TODO throw specific error
-        else:  # literal
-            return value.value
-
-    def resolve_command(command):
-        # TODO get mad about command name here?
-        args = [resolve_arg(arg) for arg in command.args]
-        return Command(command.cmd, args)
-
-    return [resolve_command(labeled_command[1])
-            for labeled_command in labeled_commands]
 
 
 def bound_int(i: int) -> int:
@@ -171,7 +18,7 @@ def bound_int(i: int) -> int:
 
 
 class SLIM:
-    def __init__(self, commands: List[Line], console: Console):
+    def __init__(self, commands: List[ResolvedCommand], console: Console):
         self.mem: Dict[int, int] = {}
         self.registers = [0 for _ in range(32)]
         self.commands = commands
@@ -185,7 +32,7 @@ class SLIM:
             except HaltException:
                 break
 
-    def exec_command(self, command: Command) -> None:
+    def exec_command(self, command: ResolvedCommand) -> None:
         getattr(self, command.cmd)(*command.args)
 
     def next_line(self):
@@ -278,22 +125,17 @@ class Interpreter:
         self.console = console
 
     def interpret(self, code: str) -> None:
-        lines = code.splitlines()
-        parsed = parse_slim(lines)
 
-        has_error = False
-        commands: List[Line] = []
-        for line in parsed:
-            if isinstance(line, ParseError):
-                has_error = True
-                self.console.write_error(line.message)
-            else:
-                commands.append(line)
+        parsed_val = parser.parse(code.splitlines())
+        named_val = flatmap(parsed_val, namer.do_name)
+        resolved_val = flatmap(named_val, resolver.resolve)
 
-        if not has_error:
-            compiled = compile_slim(commands)
-            slim = SLIM(compiled, self.console)
-            slim.execute()
+        if isinstance(resolved_val, Failure):
+            for error in resolved_val.value:
+                self.console.write_error(error.get_message())
+        elif isinstance(resolved_val, Success):
+            compiled = resolved_val.value
+            SLIM(compiled, self.console).execute()
 
 
 def main():
