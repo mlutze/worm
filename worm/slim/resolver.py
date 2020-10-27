@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import List, Dict
+import re
 
 from worm.slim.error import CompilationError
 from worm.slim.namer import NamedProgram, NamedCommand
@@ -108,7 +109,7 @@ class ExpectedLabelError(CompilationError):
 
 def resolve(program: NamedProgram) -> Validation[List[ResolvedLine], CompilationError]:
     def visit_arg(arg: str, expected: Value, line: int) -> Validation[int, CompilationError]:
-        if arg.isdigit():
+        if re.fullmatch(r"-?\d+", arg):
             return Success(int(arg))
         elif arg in program.registers:
             if expected == Value.Register:

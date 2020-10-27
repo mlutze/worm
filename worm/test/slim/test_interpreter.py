@@ -97,3 +97,11 @@ class InterpreterTest(unittest.TestCase):
     def test_allocate_registers_comma(self):
         expected = ["Unknown opcode 'allocate-registers' in line 1."]
         self.do_test("allocate-registers-comma.slim", [], [], expected)
+
+    def test_negative_dividend(self):
+        expected = ["-1"]
+        self.do_test("negative-dividend.slim", [], expected)
+
+    def test_negative_divisor(self):
+        expected = ["1"]
+        self.do_test("negative-divisor.slim", [], expected)
