@@ -3,6 +3,7 @@ from typing import List
 
 from worm.slim.error import CompilationError
 from worm.util.option import Option, Some, Nothing, flatten
+from worm.util.regex import either, capture, separated
 from worm.util.validation import Validation, Success
 
 
@@ -29,7 +30,11 @@ class ParsedAlloc(ParsedLine):
         self.line = line
 
 
-NAME_REGEX = r"[\D][^\s,]*"
+NAME = r"[\D][^\s,]*"
+NUMBER = r"\d+"
+ARG_SPLIT = either(r"\s*,\s*", r"\s+")
+ARG = either(NAME, NUMBER)
+COMMAND = r"[a-z-]+"
 
 
 def parse(code: List[str]) -> Validation[List[ParsedLine], CompilationError]:
@@ -41,19 +46,18 @@ def parse(code: List[str]) -> Validation[List[ParsedLine], CompilationError]:
         if line == "":
             return Nothing()
         # TODO allow space between name and colon?
-        elif match := re.fullmatch("(" + NAME_REGEX + "):", line):
+        elif match := re.fullmatch(capture(NAME) + ":", line):
             return Some(ParsedLabel(match[1], line_num))  # type: ignore
-        elif match := re.fullmatch(r"allocate-registers\s+(" + NAME_REGEX + r"(?:\s*,\s*" + NAME_REGEX + ")*)", line):
-            names = [name.strip() for name in match[1].split(",")]  # type: ignore
+        elif match := re.fullmatch(r"allocate-registers\s+" + capture(separated(NAME, ARG_SPLIT)), line):
+            names = [name.strip() for name in re.split(ARG_SPLIT, match[1])]  # type: ignore
             return Some(ParsedAlloc(names, line_num))
-        elif match := re.fullmatch(r"([a-z]+)(\s+(?:" + NAME_REGEX + r"|\d+)(?:\s*,\s*(?:" +
-                                   NAME_REGEX + r"|\d+))*)?", line):
+        elif match := re.fullmatch(capture(COMMAND) + capture(ARG_SPLIT + separated(ARG, ARG_SPLIT)) + "?", line):
             cmd = match[1]  # type: ignore
             arg_string = match[2]  # type: ignore
             if arg_string is None:
                 args = []
             else:
-                args = [arg.strip() for arg in arg_string.split(",")]
+                args = [arg.strip() for arg in re.split(ARG_SPLIT, arg_string) if arg.strip()]  # TODO slightly hacky
 
             return Some(ParsedCommand(cmd, args, line_num))
         else:

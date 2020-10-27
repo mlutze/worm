@@ -85,3 +85,15 @@ class InterpreterTest(unittest.TestCase):
             "Too many arguments in line 3."
         ]
         self.do_test("too-many-arguments.slim", [], [], expected)
+
+    def test_no_commas(self):
+        expected = ["3"]
+        self.do_test("no-commas.slim", [], expected)
+
+    def test_extra_commas(self):
+        expected = ["3"]
+        self.do_test("extra-commas.slim", [], expected)
+
+    def test_allocate_registers_comma(self):
+        expected = ["Unknown opcode 'allocate-registers' in line 1."]
+        self.do_test("allocate-registers-comma.slim", [], [], expected)
