@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from worm.slim import parser, namer, resolver
 from worm.slim.resolver import ResolvedCommand
@@ -15,6 +15,22 @@ class HaltException(Exception):
 
 def bound_int(i: int) -> int:
     return (i + 2 ** 31) % (2 ** 32) - 2 ** 31
+
+
+def sign(i: int) -> int:
+    if i > 0:
+        return 1
+    elif i == 0:
+        return 0
+    else:
+        return -1
+
+
+def swap_sign(a: int, b: int) -> Tuple[int, int]:
+    if sign(a) == sign(b):
+        return a, b
+    else:
+        return -a, -b
 
 
 class SLIM:
@@ -59,7 +75,8 @@ class SLIM:
         self.next_line()
 
     def rem(self, dest, src1, src2):
-        self.registers[dest] = bound_int(self.registers[src1] % self.registers[src2])
+        a, b = swap_sign(self.registers[src1], self.registers[src2])
+        self.registers[dest] = bound_int(a % b)
         self.next_line()
 
     def seq(self, dest, src1, src2):
